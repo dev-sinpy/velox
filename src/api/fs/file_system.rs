@@ -1,8 +1,8 @@
+use crate::helper::VeloxError;
 use content_inspector::{inspect, ContentType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::io::{self, Error, ErrorKind};
 use tinyfiledialogs::{open_file_dialog, open_file_dialog_multi, select_folder_dialog};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -80,30 +80,43 @@ pub enum FilePath {
     Multiple(Vec<String>),
 }
 
-pub fn open_dialog(multiple: bool, filter: Option<Vec<String>>) -> Option<FilePath> {
+pub fn open_dialog(multiple: bool, filter: Option<Vec<String>>) -> Result<FilePath, VeloxError> {
     // function for opening a native file chooser dialog.
     if multiple {
         let path = open_file_dialog_multi("select file", ".", None);
         match path {
-            Some(path) => return Some(FilePath::Multiple(path)), // return file path
-            None => return None, // return None if no path has been selected.
+            Some(path) => return Ok(FilePath::Multiple(path)), // return file path
+            None => {
+                return Err(VeloxError::DialogError {
+                    detail: String::from("User did not selected any file."),
+                })
+            } // return None if no path has been selected.
         }
     } else {
         let path = open_file_dialog("select file", ".", None);
         match path {
-            Some(path) => return Some(FilePath::Single(path)), // return file path
-            None => return None, // return None if no path has been selected.
+            Some(path) => return Ok(FilePath::Single(path)), // return file path
+            None => {
+                return Err(VeloxError::DialogError {
+                    detail: String::from("User did not selected any file."),
+                })
+            } // return None if no path has been selected.
         }
     }
 }
 
-pub fn select_folder() -> Option<String> {
+pub fn select_folder() -> Result<String, VeloxError> {
     // function for opening a native dialog for selecting a folder.
     // returns path of a selected folder.
-    select_folder_dialog("select folder", ".")
+    match select_folder_dialog("select folder", ".") {
+        Some(path) => Ok(path),
+        None => Err(VeloxError::DialogError {
+            detail: String::from("User did not selected any file."),
+        }),
+    }
 }
 
-pub fn read_dir(path: String) -> io::Result<HashMap<String, File>> {
+pub fn read_dir(path: String) -> Result<HashMap<String, File>, VeloxError> {
     // function for reading contenrs of a directory.
     let mut folder: HashMap<String, File> = HashMap::new();
 
@@ -116,14 +129,15 @@ pub fn read_dir(path: String) -> io::Result<HashMap<String, File>> {
     Ok(folder)
 }
 
-pub fn create_dir(path: String) -> io::Result<()> {
+pub fn create_dir(path: String) -> Result<String, VeloxError> {
     /* Function for creating a directory
     Creates directory in a given path
     */
-    fs::DirBuilder::new().create(path)
+    fs::DirBuilder::new().create(path)?;
+    Ok("success".to_string())
 }
 
-pub fn create_file(path: String) -> io::Result<()> {
+pub fn create_file(path: String) -> Result<String, VeloxError> {
     /* Function for creating a file.
     Creates a folder in current working
     directory if path is none, else creates folder in given path.
@@ -132,7 +146,7 @@ pub fn create_file(path: String) -> io::Result<()> {
         .write(true)
         .create_new(true)
         .open(path)?;
-    Ok(())
+    Ok("success".to_string())
 }
 
 pub fn read_file(path: String) -> FileResult {
@@ -148,39 +162,39 @@ pub fn read_file(path: String) -> FileResult {
     FileResult::new(path, bytes, metadata)
 }
 
-fn read_text_file(path: String) -> Result<String, Error> {
-    //read a text file
-    use base64::encode;
+// fn read_text_file(path: String) -> Result<String, VeloxError> {
+//     //read a text file
+//     use base64::encode;
 
-    let bytes = fs::read(&path).unwrap();
+//     let bytes = fs::read(&path).unwrap();
 
-    match inspect(&bytes) {
-        ContentType::BINARY => Err(Error::new(ErrorKind::Other, "invalid text file.")),
-        _ => Ok(base64::encode(&bytes)),
-    }
-}
+//     match inspect(&bytes) {
+//         ContentType::BINARY => Err(VeloxError::IoError { source: "here" }),
+//         _ => Ok(base64::encode(&bytes)),
+//     }
+// }
 
-pub fn copy_file(from: String, to: String) -> io::Result<()> {
+pub fn copy_file(from: String, to: String) -> Result<String, VeloxError> {
     // copy a file from a to b, where a is current path of a file
     // and b is a path where you want it to be copied.
     fs::copy(from, to)?;
-    Ok(())
+    Ok("success".to_string())
 }
 
-pub fn rename_file(from: String, to: String) -> io::Result<()> {
+pub fn rename_file(from: String, to: String) -> Result<String, VeloxError> {
     //rename or move file
     fs::rename(from, to)?; // move file
-    Ok(())
+    Ok("success".to_string())
 }
 
-pub fn remove_file(path: String) -> io::Result<()> {
+pub fn remove_file(path: String) -> Result<String, VeloxError> {
     // remove a file
     fs::remove_file(path)?;
-    Ok(())
+    Ok("success".to_string())
 }
 
-pub fn remove_dir(path: String) -> io::Result<()> {
+pub fn remove_dir(path: String) -> Result<String, VeloxError> {
     // remove a directory and all its contents. USE VERY CAREFULLY
     fs::remove_dir_all(path)?;
-    Ok(())
+    Ok("success".to_string())
 }

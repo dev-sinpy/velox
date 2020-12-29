@@ -1,7 +1,11 @@
-use notify_rust::error::Error;
+use crate::helper::VeloxError;
 use notify_rust::{Hint, Notification};
 
-pub fn show_notification(summary: String, body: String, timeout: i32) -> Result<(), Error> {
+pub fn show_notification(
+    summary: String,
+    body: String,
+    timeout: i32,
+) -> Result<String, VeloxError> {
     let notification = Notification::new()
         .summary(&summary)
         .body(&body)
@@ -11,5 +15,5 @@ pub fn show_notification(summary: String, body: String, timeout: i32) -> Result<
         // .hint(Hint::Resident(true))
         .timeout(timeout)
         .show()?;
-    Ok(())
+    Ok("success".to_string())
 }

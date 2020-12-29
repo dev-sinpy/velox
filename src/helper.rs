@@ -1,20 +1,40 @@
-// use custom_error::custom_error;
-
-// // Note the use of braces rather than parentheses.
-// custom_error! {CommandError
-//     Unknown{code:u8} = "unknown error with code {code}.",
-//     Err41            = "Sit by a lake"
-// }
-
-// pub fn execute_cmd(args: Vec<String>) {
-//     println!("{:?}", args.as_slice());
-// }
-
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value as JsonValue;
 use std::fmt::Display;
 use webview_official::Webview;
+
+use custom_error::custom_error;
+use notify_rust;
+use std::io;
+
+custom_error! {pub VeloxError
+    NotificationError{source: notify_rust::error::Error} = "{source}",
+    IoError{source: io::Error} = "{source}",
+    DialogError{detail: String} = "{detail}",
+}
+
+pub fn execute_cmd<T: Serialize>(
+    result: Result<T, VeloxError>,
+    webview: &mut Webview<'_>,
+    success_callback: String,
+    error_callback: String,
+) {
+    match result {
+        Ok(val) => {
+            let callback_string =
+                format_callback_result(convert_to_json(Response::Success(val)), success_callback);
+            webview.dispatch(move |w| w.eval(callback_string.as_str()));
+        }
+        Err(err) => {
+            let callback_string = format_callback_result(
+                convert_to_json(Response::Error(err.to_string())),
+                error_callback,
+            );
+            webview.dispatch(move |w| w.eval(callback_string.as_str()));
+        }
+    }
+}
 
 pub enum Response<T> {
     Success(T),

@@ -6,11 +6,18 @@ mod helper;
 
 use crate::api::fs::file_system;
 use app::AppBuilder;
+use custom_error::custom_error;
+use notify_rust;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::fmt::{Debug, Display};
+use std::io;
 use webview_official::Webview;
 
+custom_error! {pub VeloxError
+    NotificationError{source: notify_rust::error::Error} = "{source}",
+    IoError{source: io::Error} = "{source}"
+}
 fn execute_cmd<T: Into<JsonValue> + Serialize>(
     webview: &mut Webview<'_>,
     result: Result<T, String>,

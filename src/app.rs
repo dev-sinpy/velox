@@ -1,4 +1,5 @@
-use crate::cmd::handle_cmd;
+// use crate::cmd::handle_cmd;
+use crate::handler::handle_cmd;
 use webview_official::{SizeHint, Webview, WebviewBuilder};
 pub type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
 

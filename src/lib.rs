@@ -1,6 +1,8 @@
 mod api;
 mod app;
 mod cmd;
+mod handler;
+mod helper;
 
 use crate::api::fs::file_system;
 use app::AppBuilder;

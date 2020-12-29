@@ -14,12 +14,13 @@ custom_error! {pub VeloxError
     DialogError{detail: String} = "{detail}",
 }
 
-pub fn execute_cmd<T: Serialize>(
-    result: Result<T, VeloxError>,
+pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
+    task: F,
     webview: &mut Webview<'_>,
     success_callback: String,
     error_callback: String,
 ) {
+    let result = task();
     match result {
         Ok(val) => {
             let callback_string =

@@ -22,8 +22,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = show_notification(summary, body, timeout);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || show_notification(summary, body, timeout),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
         },
 
@@ -33,8 +37,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::read_dir(path);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::read_dir(path),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::CreateDir {
@@ -42,8 +50,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::create_dir(path);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::create_dir(path),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::CreateFile {
@@ -51,8 +63,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::create_file(path);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::create_file(path),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::RemoveFile {
@@ -60,8 +76,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::remove_file(path);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::remove_file(path),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::RemoveDir {
@@ -69,8 +89,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::remove_dir(path);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::remove_dir(path),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::CopyFile {
@@ -79,8 +103,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::copy_file(from, to);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::copy_file(from, to),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::RenameFile {
@@ -89,8 +117,12 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::rename_file(from, to);
-                execute_cmd(result, webview, success_callback, error_callback);
+                execute_cmd(
+                    || file_system::rename_file(from, to),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::OpenDialog {

@@ -6,9 +6,11 @@ use webview_official::Webview;
 
 use custom_error::custom_error;
 use notify_rust;
+use serde_json;
 use std::io;
 
 custom_error! {pub VeloxError
+    CommandError{source: serde_json::error::Error} = "{source}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
     IoError{source: io::Error} = "{source}",
     DialogError{detail: String} = "{detail}",

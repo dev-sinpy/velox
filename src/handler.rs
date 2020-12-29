@@ -5,13 +5,13 @@ use crate::helper::*;
 use file_system::FilePath;
 use webview_official::Webview;
 
-pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
+pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError> {
     // function for calling appropiate Api from a given command.
     // returns None if command is not recognised
 
     use crate::cmd::Cmd::*;
 
-    let command: Cmd = serde_json::from_str(arg).unwrap();
+    let command: Cmd = serde_json::from_str(arg)?;
 
     match command {
         Notification(noti) => match noti {
@@ -28,6 +28,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
         },
 
@@ -43,6 +44,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::CreateDir {
@@ -56,6 +58,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::CreateFile {
@@ -69,6 +72,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::RemoveFile {
@@ -82,6 +86,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::RemoveDir {
@@ -95,6 +100,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::CopyFile {
@@ -109,6 +115,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::RenameFile {
@@ -123,6 +130,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                     success_callback,
                     error_callback,
                 );
+                Some(())
             }
 
             FsApi::OpenDialog {
@@ -158,6 +166,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                         webview.dispatch(move |w| w.eval(callback_string.as_str()));
                     }
                 }
+                Some(())
             }
 
             FsApi::SelectFolder {
@@ -182,9 +191,10 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Option<()> {
                         webview.dispatch(move |w| w.eval(callback_string.as_str()));
                     }
                 }
+                Some(())
             }
-            _ => {}
+            _ => None,
         },
     };
-    Some(())
+    Ok(())
 }

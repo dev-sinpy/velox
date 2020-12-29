@@ -87,26 +87,25 @@ pub fn build_webview(app: &mut App) -> Result<Webview<'static>, String> {
 
     webview.bind("invoke", move |seq, arg| {
         //Todo - Add logic for handling calls from javascript
-        // w.r#return(seq, 0, "{ result: 'We always knew it!' }");
-
-        handle_cmd(&mut w, &format_arg(arg));
-        // match app.run_invoke_handler(&mut w, &arg) {
-        //     Ok(handled) => {
-        //         if handled {
-        //             // String::from("")
-        //         } else {
-        //             // Err("not handled".to_string())
-        //         }
-        //     } // Err(e) => e,
-        //     _ => {}
-        // };
+        match handle_cmd(&mut w, &parse_arg(arg)) {
+            Ok(()) => {}
+            Err(err) => match app.run_invoke_handler(&mut w, &parse_arg(arg)) {
+                Ok(handled) => {
+                    if handled {
+                        // String::from("")
+                    } else {
+                        // call middleware
+                    }
+                }
+                _ => {}
+            },
+        }
     });
 
     Ok(webview)
 }
 
-// Transform `[payload]` to `payload`
-pub fn format_arg(arg: &str) -> String {
+pub fn parse_arg(arg: &str) -> String {
     arg.chars()
         .skip(1)
         .take(arg.chars().count() - 2)

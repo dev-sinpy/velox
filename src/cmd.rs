@@ -32,6 +32,11 @@ pub enum FsApi {
         success_callback: String,
         error_callback: String,
     },
+    ReadTextFile {
+        path: String,
+        success_callback: String,
+        error_callback: String,
+    },
     CopyFile {
         from: String,
         to: String,
@@ -82,6 +87,13 @@ pub enum FsApi {
         path: String,
     },
     SelectFolder {
+        success_callback: String,
+        error_callback: String,
+    },
+    SaveFile {
+        path: String,
+        content: Vec<u8>,
+        mode: String,
         success_callback: String,
         error_callback: String,
     },

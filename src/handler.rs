@@ -3,12 +3,11 @@ use crate::api::notification::show_notification;
 use crate::cmd::*;
 use crate::helper::*;
 use file_system::FilePath;
+use std::path::Path;
 use webview_official::Webview;
 
+/// A command handler which passes commands from webview to the velox-api
 pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError> {
-    // function for calling appropiate Api from a given command.
-    // returns None if command is not recognised
-
     use crate::cmd::Cmd::*;
 
     let command: Cmd = serde_json::from_str(arg)?;
@@ -28,7 +27,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
         },
 
@@ -44,7 +42,19 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
+            }
+
+            FsApi::ReadTextFile {
+                path,
+                success_callback,
+                error_callback,
+            } => {
+                execute_cmd(
+                    || file_system::read_text_file(path),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::CreateDir {
@@ -58,7 +68,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
 
             FsApi::CreateFile {
@@ -72,7 +81,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
 
             FsApi::RemoveFile {
@@ -86,7 +94,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
 
             FsApi::RemoveDir {
@@ -100,7 +107,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
 
             FsApi::CopyFile {
@@ -115,7 +121,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
 
             FsApi::RenameFile {
@@ -130,7 +135,6 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                     success_callback,
                     error_callback,
                 );
-                Some(())
             }
 
             FsApi::OpenDialog {
@@ -139,61 +143,41 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::open_dialog(multiple, filter);
-
-                match result {
-                    Ok(val) => match val {
-                        FilePath::Single(path) => {
-                            let callback_string = format_callback_result(
-                                convert_to_json(Response::Success(path)),
-                                success_callback,
-                            );
-                            webview.dispatch(move |w| w.eval(callback_string.as_str()));
-                        }
-                        FilePath::Multiple(path) => {
-                            let callback_string = format_callback_result(
-                                convert_to_json(Response::Success(path)),
-                                success_callback,
-                            );
-                            webview.dispatch(move |w| w.eval(callback_string.as_str()));
-                        }
-                    },
-                    Err(err) => {
-                        let callback_string = format_callback_result(
-                            convert_to_json(Response::Error(err.to_string())),
-                            error_callback,
-                        );
-                        webview.dispatch(move |w| w.eval(callback_string.as_str()));
-                    }
-                }
-                Some(())
+                execute_cmd(
+                    || file_system::open_dialog(multiple, filter),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
 
             FsApi::SelectFolder {
                 success_callback,
                 error_callback,
             } => {
-                let result = file_system::select_folder();
-
-                match result {
-                    Ok(val) => {
-                        let callback_string = format_callback_result(
-                            convert_to_json(Response::Success(val)),
-                            success_callback,
-                        );
-                        webview.dispatch(move |w| w.eval(callback_string.as_str()));
-                    }
-                    Err(err) => {
-                        let callback_string = format_callback_result(
-                            convert_to_json(Response::Error(err.to_string())),
-                            error_callback,
-                        );
-                        webview.dispatch(move |w| w.eval(callback_string.as_str()));
-                    }
-                }
-                Some(())
+                execute_cmd(
+                    || file_system::select_folder(),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
             }
-            _ => None,
+            FsApi::SaveFile {
+                path,
+                content,
+                mode,
+                success_callback,
+                error_callback,
+            } => {
+                let path_buf = Path::new(&path);
+                execute_cmd(
+                    || file_system::save_file(path_buf, &content[..], mode),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
+            }
+            _ => {}
         },
     };
     Ok(())

@@ -1,12 +1,17 @@
-// use crate::cmd::handle_cmd;
 use crate::handler::handle_cmd;
+use crate::{config, VeloxError};
+
 use webview_official::{SizeHint, Webview, WebviewBuilder};
+
 pub type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
 
 /// The application runner.
 pub struct App {
+    pub title: &'static str,
+    pub debug: bool,
     /// The JS message handler.
     pub invoke_handler: Option<InvokeHandler>,
+    /// Url of the local server where frontend is hosted
     pub url: &'static str,
 }
 
@@ -39,17 +44,24 @@ impl App {
 /// The App builder.
 #[derive(Default)]
 pub struct AppBuilder {
+    pub title: &'static str,
+    pub debug: bool,
     /// The JS message handler.
-    invoke_handler: Option<InvokeHandler>,
+    pub invoke_handler: Option<InvokeHandler>,
+    /// Url of the local server where frontend is hosted
     pub url: &'static str,
 }
 
 impl AppBuilder {
     /// Creates a new App builder.
-    pub fn new(url: &'static str) -> Self {
+    pub fn new() -> Self {
+        let config = config::load_config().unwrap();
+
         Self {
+            title: Box::leak(config.title.into_boxed_str()),
+            debug: config.debug,
             invoke_handler: None,
-            url,
+            url: Box::leak(config.dev_server_url.into_boxed_str()),
         }
     }
 
@@ -65,16 +77,19 @@ impl AppBuilder {
     /// Builds the App.
     pub fn build(self) -> App {
         App {
+            title: self.title,
+            debug: self.debug,
             invoke_handler: self.invoke_handler,
             url: self.url,
         }
     }
 }
 
-pub fn build_webview(app: &mut App) -> Result<Webview<'static>, String> {
+///Builds a webview instance with all the required details.
+pub fn build_webview(app: &mut App) -> Result<Webview<'static>, VeloxError> {
     let mut webview = WebviewBuilder::new()
-        .debug(true)
-        .title("Demo")
+        .debug(app.debug)
+        .title(app.title)
         .width(500)
         .height(400)
         .resize(SizeHint::NONE)
@@ -85,17 +100,17 @@ pub fn build_webview(app: &mut App) -> Result<Webview<'static>, String> {
 
     let mut w = webview.clone();
 
-    webview.bind("invoke", move |seq, arg| {
+    webview.bind("invoke", move |_seq, arg| {
         //Todo - Add logic for handling calls from javascript
         match handle_cmd(&mut w, &parse_arg(arg)) {
             Ok(()) => {}
             Err(err) => match app.run_invoke_handler(&mut w, &parse_arg(arg)) {
                 Ok(handled) => {
-                    if handled {
-                        // String::from("")
-                    } else {
-                        // call middleware
-                    }
+                    // if handled {
+                    //     // String::from("")
+                    // } else {
+                    //     // call middleware
+                    // }
                 }
                 _ => {}
             },
@@ -105,6 +120,7 @@ pub fn build_webview(app: &mut App) -> Result<Webview<'static>, String> {
     Ok(webview)
 }
 
+/// Parses arguments that came from javascript
 pub fn parse_arg(arg: &str) -> String {
     arg.chars()
         .skip(1)

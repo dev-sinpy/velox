@@ -9,6 +9,7 @@ use notify_rust;
 use serde_json;
 use std::io;
 
+/// If something goes wrong these errors will be returned
 custom_error! {pub VeloxError
     CommandError{source: serde_json::error::Error} = "{source}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
@@ -16,6 +17,8 @@ custom_error! {pub VeloxError
     DialogError{detail: String} = "{detail}",
 }
 
+/// Executes a given task in a new thread and passes return value
+/// to a webview instance to return the data to frontend.
 pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
     task: F,
     webview: &mut Webview<'_>,
@@ -39,11 +42,15 @@ pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
     }
 }
 
+/// Response data to be send back to javascript
 pub enum Response<T> {
+    /// Successful response with result
     Success(T),
+    /// Error response with details about the error
     Error(T),
 }
 
+/// Converts a data structure to JSON so that the reult can be passed to the frontend
 pub fn convert_to_json<T: Serialize>(res: Response<T>) -> String {
     match res {
         Response::Success(data) => json!({
@@ -57,6 +64,7 @@ pub fn convert_to_json<T: Serialize>(res: Response<T>) -> String {
     }
 }
 
+/// Formats a callback to a valid JS expression
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
     function_name: S,
     arg: T,
@@ -66,7 +74,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
       if (window["{fn}"]) {{
         window["{fn}"]({arg})
       }} else {{
-        console.warn("[Ezgui] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+        console.warn("[Velox] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
       }}
     "#,
       fn = function_name,
@@ -74,6 +82,9 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
     )
 }
 
+/// Calls the format_callback fuction with a task result and a callback.
+/// If a task result was Ok then call a success callback
+/// else call an error callback
 pub fn format_callback_result<T: Serialize>(result: T, callback: String) -> String {
     format_callback(callback, serde_json::to_value(result).unwrap())
 }

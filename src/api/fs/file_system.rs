@@ -3,9 +3,14 @@ use content_inspector::{inspect, ContentType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use tinyfiledialogs::{open_file_dialog, open_file_dialog_multi, select_folder_dialog};
+use std::io::Write;
+use std::path::Path;
+use tinyfiledialogs::{
+    open_file_dialog, open_file_dialog_multi, save_file_dialog, select_folder_dialog,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct FileResult {
     /// A basic representation of a file. Note- Don't use this struct directly
     /// use helper functions from filesystem module to build this struct.
@@ -19,6 +24,7 @@ pub struct FileResult {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     /// MetaData of a file or folder.
 
@@ -35,6 +41,7 @@ pub struct Metadata {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct File {
     /// Representation of a file.
     pub name: String,
@@ -116,6 +123,41 @@ pub fn select_folder() -> Result<String, VeloxError> {
     }
 }
 
+/// function for saving bytes of data to a file.
+pub fn save_file(path: &Path, content: &[u8], mode: String) -> Result<String, VeloxError> {
+    use fs::OpenOptions;
+    if path.exists() && path.is_file() {
+        let mut buffer = match mode.as_str() {
+            "w" => OpenOptions::new().read(true).write(true).open(path)?,
+            "a" => OpenOptions::new().append(true).open(path)?,
+            _ => {
+                return Err(VeloxError::IoError {
+                    source: std::io::Error::new(std::io::ErrorKind::Other, "Invalid mode."),
+                })
+            }
+        };
+        write_file(&mut buffer, content)
+    } else {
+        match save_file_dialog("save file", path.to_str().unwrap()) {
+            Some(path) => {
+                let mut buffer = match mode.as_str() {
+                    "w" => OpenOptions::new().read(true).write(true).open(path)?,
+                    "a" => OpenOptions::new().append(true).open(path)?,
+                    _ => {
+                        return Err(VeloxError::IoError {
+                            source: std::io::Error::new(std::io::ErrorKind::Other, "Invalid mode."),
+                        })
+                    }
+                };
+                write_file(&mut buffer, content)
+            }
+            None => Err(VeloxError::DialogError {
+                detail: String::from("User did not save the file."),
+            }),
+        }
+    }
+}
+
 pub fn read_dir(path: String) -> Result<HashMap<String, File>, VeloxError> {
     // function for reading contenrs of a directory.
     let mut folder: HashMap<String, File> = HashMap::new();
@@ -162,17 +204,22 @@ pub fn read_file(path: String) -> FileResult {
     FileResult::new(path, bytes, metadata)
 }
 
-// fn read_text_file(path: String) -> Result<String, VeloxError> {
-//     //read a text file
-//     use base64::encode;
+pub fn read_text_file(path: String) -> Result<String, VeloxError> {
+    //read a text file
 
-//     let bytes = fs::read(&path).unwrap();
+    let file = fs::read_to_string(&path)?;
+    Ok(file)
 
-//     match inspect(&bytes) {
-//         ContentType::BINARY => Err(VeloxError::IoError { source: "here" }),
-//         _ => Ok(base64::encode(&bytes)),
-//     }
-// }
+    // match inspect(&bytes) {
+    //     ContentType::BINARY => Err(VeloxError::IoError { source: "here" }),
+    //     _ => Ok(base64::encode(&bytes)),
+    // }
+}
+
+pub fn write_file(file: &mut fs::File, content: &[u8]) -> Result<String, VeloxError> {
+    file.write_all(content)?;
+    Ok("success".to_string())
+}
 
 pub fn copy_file(from: String, to: String) -> Result<String, VeloxError> {
     // copy a file from a to b, where a is current path of a file

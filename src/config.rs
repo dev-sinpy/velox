@@ -9,6 +9,7 @@ pub struct VeloxConfig {
     pub debug: bool,
     pub permissions: Vec<String>,
     pub dev_server_url: String,
+    pub package_manager: String,
 }
 
 impl ::std::default::Default for VeloxConfig {
@@ -19,6 +20,7 @@ impl ::std::default::Default for VeloxConfig {
             debug: true,
             permissions: vec![],
             dev_server_url: String::from("http://localhost:8000"),
+            package_manager: String::from("npm"),
         }
     }
 }

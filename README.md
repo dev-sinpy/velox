@@ -1,4 +1,5 @@
 # Velox
+> Please ignore this repo for now. It is still under heavy development and most of the stuff doesn't work. Contact [me](mailto::dev.sinpy@protonmail.com) if you have any other questions.
 
 ## Introduction
 Velox is a framework that focuses on simplicity, performance and ease of use. It allows you to build cross platform native apps using web-technology. Velox uses webview and rust under the hood which helps to keep the binary size to absolute minimal and increasing the performance.

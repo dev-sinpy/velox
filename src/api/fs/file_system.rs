@@ -1,4 +1,4 @@
-use crate::helper::VeloxError;
+use crate::VeloxError;
 use content_inspector::{inspect, ContentType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -72,8 +72,8 @@ impl Metadata {
             size: metadata.len(),
             is_dir: metadata.is_dir(),
             is_file: metadata.is_file(),
-            is_text: is_text,
-            is_binary: is_binary,
+            is_text,
+            is_binary,
         }
     }
 }
@@ -92,22 +92,18 @@ pub fn open_dialog(multiple: bool, filter: Option<Vec<String>>) -> Result<FilePa
     if multiple {
         let path = open_file_dialog_multi("select file", ".", None);
         match path {
-            Some(path) => return Ok(FilePath::Multiple(path)), // return file path
-            None => {
-                return Err(VeloxError::DialogError {
-                    detail: String::from("User did not selected any file."),
-                })
-            } // return None if no path has been selected.
+            Some(path) => Ok(FilePath::Multiple(path)), // return file path
+            None => Err(VeloxError::DialogError {
+                detail: String::from("User did not selected any file."),
+            }), // return None if no path has been selected.
         }
     } else {
         let path = open_file_dialog("select file", ".", None);
         match path {
-            Some(path) => return Ok(FilePath::Single(path)), // return file path
-            None => {
-                return Err(VeloxError::DialogError {
-                    detail: String::from("User did not selected any file."),
-                })
-            } // return None if no path has been selected.
+            Some(path) => Ok(FilePath::Single(path)), // return file path
+            None => Err(VeloxError::DialogError {
+                detail: String::from("User did not selected any file."),
+            }), // return None if no path has been selected.
         }
     }
 }

@@ -1,8 +1,8 @@
 use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
 use crate::cmd::*;
-use crate::helper::*;
-use file_system::FilePath;
+use crate::{execute_cmd, VeloxError};
+
 use std::path::Path;
 use webview_official::Webview;
 
@@ -156,7 +156,7 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 error_callback,
             } => {
                 execute_cmd(
-                    || file_system::select_folder(),
+                    file_system::select_folder,
                     webview,
                     success_callback,
                     error_callback,

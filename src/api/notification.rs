@@ -1,12 +1,12 @@
-use crate::helper::VeloxError;
-use notify_rust::{Hint, Notification};
+use crate::VeloxError;
+use notify_rust::Notification;
 
 pub fn show_notification(
     summary: String,
     body: String,
     timeout: i32,
 ) -> Result<String, VeloxError> {
-    let notification = Notification::new()
+    Notification::new()
         .summary(&summary)
         .body(&body)
         // .icon("thunderbird")

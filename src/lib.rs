@@ -11,7 +11,6 @@ pub mod app;
 pub mod cmd;
 pub mod config;
 pub mod handler;
-pub mod helper;
 
 pub use crate::api::fs::file_system;
 pub use app::AppBuilder;
@@ -19,17 +18,17 @@ pub use config::VeloxConfig;
 
 use confy::ConfyError;
 use serde::Serialize;
+use serde_json::json;
 use serde_json::Value as JsonValue;
 use std::fmt::{Debug, Display};
 use std::io;
 use webview_official::Webview;
 
 use custom_error::custom_error;
-use notify_rust;
-use serde_json;
 
-/// If something goes wrong these errors will be returned
-custom_error! {pub VeloxError
+custom_error! {
+    /// If something goes wrong these errors will be returned
+    pub VeloxError
     ConfigError{source: ConfyError} = "{source}",
     CommandError{source: serde_json::error::Error} = "{source}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
@@ -37,13 +36,15 @@ custom_error! {pub VeloxError
     DialogError{detail: String} = "{detail}",
 }
 
-fn execute_cmd<T: Into<JsonValue> + Serialize>(
+/// Executes a given task in a new thread and passes return value
+/// to a webview instance to return the data to frontend.
+pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
+    task: F,
     webview: &mut Webview<'_>,
-    result: Result<T, String>,
     success_callback: String,
     error_callback: String,
 ) {
-    let js = format_callback_result(result, success_callback);
+    let js = format_callback_result(task(), success_callback, error_callback);
     webview.dispatch(move |w| w.eval(js.as_str()));
 }
 
@@ -64,14 +65,38 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
     )
 }
 
-pub fn format_callback_result<T: Serialize, E: Serialize + Display>(
+pub fn format_callback_result<T: Serialize, E: Display>(
     result: Result<T, E>,
-    callback: String,
+    success_callback: String,
+    error_callback: String,
 ) -> String {
-    let res = match result {
-        Ok(val) => format_callback(callback, serde_json::to_value(val).unwrap()),
-        Err(err) => err.to_string(),
-    };
+    match result {
+        Ok(val) => format_callback(success_callback, convert_to_json(Response::Success(val))),
+        Err(err) => format_callback(
+            error_callback,
+            convert_to_json(Response::Error(err.to_string())),
+        ),
+    }
+}
 
-    res
+/// Response data to be send back to javascript
+pub enum Response<T> {
+    /// Successful response with result
+    Success(T),
+    /// Error response with details about the error
+    Error(T),
+}
+
+/// Converts a data structure to JSON so that the reult can be passed to the frontend
+pub fn convert_to_json<T: Serialize>(res: Response<T>) -> String {
+    match res {
+        Response::Success(data) => json!({
+            "result": data,
+        })
+        .to_string(),
+        Response::Error(msg) => json!({
+            "error": msg,
+        })
+        .to_string(),
+    }
 }

@@ -32,6 +32,7 @@ custom_error! {
     ConfigError{source: ConfyError} = "{source}",
     CommandError{source: serde_json::error::Error} = "{source}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
+    SubProcessError{detail: String} = "{detail}",
     IoError{source: io::Error} = "{source}",
     DialogError{detail: String} = "{detail}",
 }

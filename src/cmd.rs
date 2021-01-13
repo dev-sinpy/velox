@@ -9,7 +9,7 @@ struct Callback(String);
 pub enum Cmd {
     FileSystem(FsApi),
     Notification(Notify),
-    // Execute()
+    SubProcess(Process),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,6 +19,18 @@ pub enum Notify {
         summary: String,
         body: String,
         timeout: i32,
+        success_callback: String,
+        error_callback: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum Process {
+    Exec {
+        cmd: String,
+        cwd: String,
+        stream_output: bool,
         success_callback: String,
         error_callback: String,
     },

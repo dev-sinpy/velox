@@ -1,5 +1,6 @@
 use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
+use crate::api::subprocess;
 use crate::cmd::*;
 use crate::{execute_cmd, VeloxError};
 
@@ -23,6 +24,23 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
             } => {
                 execute_cmd(
                     || show_notification(summary, body, timeout),
+                    webview,
+                    success_callback,
+                    error_callback,
+                );
+            }
+        },
+
+        SubProcess(process) => match process {
+            Process::Exec {
+                cmd,
+                cwd,
+                stream_output,
+                success_callback,
+                error_callback,
+            } => {
+                execute_cmd(
+                    || subprocess::exec(&cmd, cwd, stream_output),
                     webview,
                     success_callback,
                     error_callback,

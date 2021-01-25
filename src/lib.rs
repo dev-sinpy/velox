@@ -8,9 +8,11 @@
 
 pub mod api;
 pub mod app;
+pub mod assets;
 pub mod cmd;
 pub mod config;
 pub mod handler;
+pub mod server;
 
 pub use crate::api::fs::file_system;
 pub use app::AppBuilder;

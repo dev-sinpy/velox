@@ -1,6 +1,7 @@
 use crate::handler::handle_cmd;
-use crate::{config, VeloxError};
+use crate::{config, server, VeloxError};
 
+use std::path::Path;
 use webview_official::{SizeHint, Webview, WebviewBuilder};
 
 pub type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
@@ -54,14 +55,29 @@ pub struct AppBuilder {
 
 impl AppBuilder {
     /// Creates a new App builder.
-    pub fn new() -> Self {
-        let config = config::load_config().unwrap();
 
-        Self {
-            title: Box::leak(config.title.into_boxed_str()),
-            debug: config.debug,
-            invoke_handler: None,
-            url: Box::leak(config.dev_server_url.into_boxed_str()),
+    pub fn from_config(config: String) -> Self {
+        use portpicker::pick_unused_port;
+
+        let config = config::parse_config(&config).unwrap();
+
+        if config.debug {
+            Self {
+                title: Box::leak(config.title.into_boxed_str()),
+                debug: config.debug,
+                invoke_handler: None,
+                url: Box::leak(config.dev_server_url.into_boxed_str()),
+            }
+        } else {
+            let port = pick_unused_port().expect("no unused port");
+            let url = format!("127.0.0.1:{}", port);
+            server::spawn_server(&url, config.clone());
+            Self {
+                title: Box::leak(config.title.into_boxed_str()),
+                debug: config.debug,
+                invoke_handler: None,
+                url: Box::leak(Box::new("http://".to_owned() + &url)),
+            }
         }
     }
 
@@ -84,6 +100,8 @@ impl AppBuilder {
         }
     }
 }
+
+pub fn build_static(path: &Path) {}
 
 ///Builds a webview instance with all the required details.
 pub fn build_webview(app: &mut App) -> Result<Webview<'static>, VeloxError> {

@@ -1,4 +1,5 @@
 use crate::VeloxError;
+use portpicker::pick_unused_port;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
 use threadpool::ThreadPool;
@@ -31,11 +32,12 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
                 .spawn()
                 .unwrap_or_else(|_| panic!("SubProcessError: Failed to run command `{}`", cmd))
         };
+        let port = pick_unused_port().expect("no unused port");
         let pool = ThreadPool::new(1);
         pool.execute(move || {
             let child_stdout = child.stdout.unwrap();
             let reader = std::io::BufReader::new(child_stdout);
-            let server = TcpListener::bind("127.0.0.1:8888").unwrap();
+            let server = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
             for stream in server.incoming() {
                 let mut websocket = accept(stream.unwrap()).unwrap();
                 // let msg = websocket.read_message().unwrap();
@@ -49,8 +51,7 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
                 break;
             }
         });
-
-        Ok(String::from("ws://localhost:8888"))
+        Ok(format!("ws://127.0.0.1:{}", port))
     } else {
         let process = if cfg!(target_os = "windows") {
             Command::new("cmd")

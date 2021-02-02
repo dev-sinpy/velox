@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub struct VeloxConfig {
     ///title of the app
-    pub title: String,
+    pub name: String,
     pub description: String,
     pub debug: bool,
     pub permissions: Vec<String>,

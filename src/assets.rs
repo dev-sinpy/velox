@@ -16,7 +16,7 @@ pub fn get_asset_path(config: &config::VeloxConfig) -> Result<String, VeloxError
                 panic!("could not load assets");
             }
         } else {
-            let asset_path = Path::new("/usr/lib/").join(&config.title).join("web/dist/");
+            let asset_path = Path::new("/usr/lib/").join(&config.name).join("web/dist/");
             println!("{:?}", asset_path);
             if asset_path.exists() || asset_path.is_dir() {
                 Ok(asset_path.to_str().unwrap().to_string())

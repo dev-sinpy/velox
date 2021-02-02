@@ -8,7 +8,7 @@ pub type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), Str
 
 /// The application runner.
 pub struct App {
-    pub title: &'static str,
+    pub name: &'static str,
     pub debug: bool,
     /// The JS message handler.
     pub invoke_handler: Option<InvokeHandler>,
@@ -45,7 +45,7 @@ impl App {
 /// The App builder.
 #[derive(Default)]
 pub struct AppBuilder {
-    pub title: &'static str,
+    pub name: &'static str,
     pub debug: bool,
     /// The JS message handler.
     pub invoke_handler: Option<InvokeHandler>,
@@ -63,7 +63,7 @@ impl AppBuilder {
 
         if config.debug {
             Self {
-                title: Box::leak(config.title.into_boxed_str()),
+                name: Box::leak(config.name.into_boxed_str()),
                 debug: config.debug,
                 invoke_handler: None,
                 url: Box::leak(config.dev_server_url.into_boxed_str()),
@@ -73,7 +73,7 @@ impl AppBuilder {
             let url = format!("127.0.0.1:{}", port);
             server::spawn_server(&url, config.clone());
             Self {
-                title: Box::leak(config.title.into_boxed_str()),
+                name: Box::leak(config.name.into_boxed_str()),
                 debug: config.debug,
                 invoke_handler: None,
                 url: Box::leak(Box::new("http://".to_owned() + &url)),
@@ -93,7 +93,7 @@ impl AppBuilder {
     /// Builds the App.
     pub fn build(self) -> App {
         App {
-            title: self.title,
+            name: self.name,
             debug: self.debug,
             invoke_handler: self.invoke_handler,
             url: self.url,
@@ -107,7 +107,7 @@ pub fn build_static(path: &Path) {}
 pub fn build_webview(app: &mut App) -> Result<Webview<'static>, VeloxError> {
     let mut webview = WebviewBuilder::new()
         .debug(app.debug)
-        .title(app.title)
+        .title(app.name)
         .width(500)
         .height(400)
         .resize(SizeHint::NONE)

@@ -72,6 +72,7 @@ impl Route<Box<dyn FnOnce() -> ResponseType>> {
 
 pub fn spawn_server(addrs: &str, config: config::VeloxConfig) {
     let server = tiny_http::Server::http(addrs).unwrap();
+    println!("Server spawned on url: {:?}", addrs);
     spawn(move || loop {
         match server.recv() {
             Ok(req) => Route::handle_req(req, &config),

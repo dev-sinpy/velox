@@ -60,8 +60,9 @@ impl AppBuilder {
         use portpicker::pick_unused_port;
 
         let config = config::parse_config(&config).unwrap();
+        let arg = std::env::args().find(|arg| arg.contains("target"));
 
-        if config.debug {
+        if let Some(_arg) = arg {
             Self {
                 name: Box::leak(config.name.into_boxed_str()),
                 debug: config.debug,

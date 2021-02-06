@@ -24,6 +24,7 @@ use serde_json::json;
 use serde_json::Value as JsonValue;
 use std::fmt::{Debug, Display};
 use std::io;
+use toml::de;
 use webview_official::Webview;
 
 use custom_error::custom_error;
@@ -32,6 +33,7 @@ custom_error! {
     /// If something goes wrong these errors will be returned
     pub VeloxError
     ConfigError{source: ConfyError} = "{source}",
+    TomlError{source: de::Error} = "{source}",
     CommandError{source: serde_json::error::Error} = "{source}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
     SubProcessError{detail: String} = "{detail}",

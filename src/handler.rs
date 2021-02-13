@@ -8,12 +8,20 @@ use std::path::Path;
 use webview_official::Webview;
 
 /// A command handler which passes commands from webview to the velox-api
-pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError> {
+pub fn handle_cmd(webview: &mut Webview, arg: &str) -> Result<(), VeloxError> {
     use crate::cmd::Cmd::*;
 
     let command: Cmd = serde_json::from_str(arg)?;
 
     match command {
+        // Events(events) => match events {
+        //     Event::VeloxEvent(event) => match event {
+        //         VeloxEvents::Initialised => {
+        //             println!("test");
+        //         }
+        //     },
+        //     _ => {}
+        // },
         Notification(noti) => match noti {
             Notify::ShowNotification {
                 summary,

@@ -1,10 +1,10 @@
 use crate::handler::handle_cmd;
-use crate::{config, server, VeloxError};
+use crate::{config, events, server, VeloxError};
 
 use std::path::Path;
 use webview_official::{SizeHint, Webview, WebviewBuilder};
 
-pub type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
+pub type InvokeHandler = Box<dyn FnMut(&mut Webview, &str) -> Result<(), String>>;
 
 /// The application runner.
 pub struct App {
@@ -29,11 +29,7 @@ impl App {
     /// Runs the invoke handler if defined.
     /// Returns whether the message was consumed or not.
     /// The message is considered consumed if the handler exists and returns an Ok Result.
-    pub fn run_invoke_handler(
-        &mut self,
-        webview: &mut Webview<'_>,
-        arg: &str,
-    ) -> Result<bool, String> {
+    pub fn run_invoke_handler(&mut self, webview: &mut Webview, arg: &str) -> Result<bool, String> {
         if let Some(ref mut invoke_handler) = self.invoke_handler {
             invoke_handler(webview, arg).map(|_| true)
         } else {
@@ -83,7 +79,7 @@ impl AppBuilder {
     }
 
     /// Defines the JS message handler callback.
-    pub fn invoke_handler<F: FnMut(&mut Webview<'_>, &str) -> Result<(), String> + 'static>(
+    pub fn invoke_handler<F: FnMut(&mut Webview, &str) -> Result<(), String> + 'static>(
         mut self,
         invoke_handler: F,
     ) -> Self {
@@ -105,15 +101,25 @@ impl AppBuilder {
 pub fn build_static(path: &Path) {}
 
 ///Builds a webview instance with all the required details.
-pub fn build_webview(app: &mut App) -> Result<Webview<'static>, VeloxError> {
+pub fn build_webview(app: &mut App) -> Result<Webview, VeloxError> {
     let mut webview = WebviewBuilder::new()
         .debug(app.debug)
         .title(app.name)
         .width(500)
         .height(400)
         .resize(SizeHint::NONE)
-        .init("")
-        .dispatch(|w| {})
+        .init(""
+        //     r#"
+        //   if (window.invoke) {{
+        //     window.invoke(JSON.stringify({{ cmd: "__initialized" }}))
+        //   }} else {{
+        //     window.addEventListener('DOMContentLoaded', function () {{
+        //       window.invoke(JSON.stringify({{ cmd: "__initialized" }}))
+        //     }})
+        //   }}
+        // "#,
+        )
+        .dispatch(|_w| {})
         .url(app.url)
         .build();
 
@@ -123,15 +129,19 @@ pub fn build_webview(app: &mut App) -> Result<Webview<'static>, VeloxError> {
         //Todo - Add logic for handling calls from javascript
         match handle_cmd(&mut w, &parse_arg(arg)) {
             Ok(()) => {}
-            Err(err) => match app.run_invoke_handler(&mut w, &parse_arg(arg)) {
-                Ok(handled) => {
-                    // if handled {
-                    //     // String::from("")
-                    // } else {
-                    //     // call middleware
-                    // }
+            Err(_err) => match events::match_events(&parse_arg(arg)) {
+                Ok(()) => {}
+                Err(err) => {
+                    println!("{:?}", err.to_string());
+                    if let Ok(handled) = app.run_invoke_handler(&mut w, &parse_arg(arg)) {
+                        if handled {
+                            // String::from("")
+                            println!("handled");
+                        } else {
+                            println!("not handled");
+                        }
+                    }
                 }
-                _ => {}
             },
         }
     });

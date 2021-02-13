@@ -11,6 +11,7 @@ pub mod app;
 pub mod assets;
 pub mod cmd;
 pub mod config;
+pub mod events;
 pub mod handler;
 pub mod server;
 
@@ -45,7 +46,7 @@ custom_error! {
 /// to a webview instance to return the data to frontend.
 pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
     task: F,
-    webview: &mut Webview<'_>,
+    webview: &mut Webview,
     success_callback: String,
     error_callback: String,
 ) {
@@ -62,7 +63,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
       if (window["{fn}"]) {{
         window["{fn}"]({arg})
       }} else {{
-        console.warn("[Ezgui] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+        console.warn("[Velox] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
       }}
     "#,
       fn = function_name,

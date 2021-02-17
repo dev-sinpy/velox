@@ -26,13 +26,14 @@ use serde_json::Value as JsonValue;
 use std::fmt::{Debug, Display};
 use std::io;
 use toml::de;
-use webview_official::Webview;
+use wry::WindowProxy;
 
 use custom_error::custom_error;
 
 custom_error! {
     /// If something goes wrong these errors will be returned
     pub VeloxError
+    WryError{source: wry::Error} = "{source}",
     ConfigError{source: ConfyError} = "{source}",
     TomlError{source: de::Error} = "{source}",
     CommandError{source: serde_json::error::Error} = "{source}",
@@ -46,12 +47,12 @@ custom_error! {
 /// to a webview instance to return the data to frontend.
 pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
     task: F,
-    webview: &mut Webview,
+    proxy: &mut WindowProxy,
     success_callback: String,
     error_callback: String,
 ) {
     let js = format_callback_result(task(), success_callback, error_callback);
-    webview.dispatch(move |w| w.eval(js.as_str()));
+    proxy.evaluate_script(&js).unwrap();
 }
 
 pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(

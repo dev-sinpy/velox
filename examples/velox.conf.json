@@ -7,6 +7,12 @@
 
     "debug": true,
 
+    "splashscreen":
+    {
+        "enable": true,
+        "content": "http://localhost"
+    },
+
     "permissions": [
         "filesystem",
         "notification",

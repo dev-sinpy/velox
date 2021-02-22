@@ -14,14 +14,6 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
     let command: Cmd = serde_json::from_str(arg)?;
 
     match command {
-        // Events(events) => match events {
-        //     Event::VeloxEvent(event) => match event {
-        //         VeloxEvents::Initialised => {
-        //             println!("test");
-        //         }
-        //     },
-        //     _ => {}
-        // },
         Notification(noti) => match noti {
             Notify::ShowNotification {
                 summary,

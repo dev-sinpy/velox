@@ -1,16 +1,8 @@
-use std::sync::Mutex;
-
+// use crate::plugin;
 use crate::VeloxError;
-
-use event_emitter_rs::EventEmitter;
-use lazy_static::lazy_static;
+// use crossbeam_channel::unbounded;
 use serde::{Deserialize, Serialize};
-
-// Use lazy_static! because the size of EventEmitter is not known at compile time
-lazy_static! {
-    // Export the emitter with `pub` keyword
-    pub static ref EVENT_EMITTER: Mutex<EventEmitter> = Mutex::new(EventEmitter::new());
-}
+// use wry::ApplicationProxy;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -44,20 +36,42 @@ pub enum Event {
     NetworkEvent(NetworkEvent),
 }
 
-pub fn match_events(arg: &str) -> Result<(), VeloxError> {
-    println!("{:?}", arg);
+pub fn parse_event(arg: &str) -> Result<Event, VeloxError> {
     let event: Event = serde_json::from_str(arg)?;
-    println!("{:?}", event);
-    match event {
-        Event::VeloxEvent(event) => {
-            println!("{:?}", event);
-        }
-        Event::ResourceEvent(event) => {
-            println!("{:?}", event);
-        }
-        Event::NetworkEvent(event) => {
-            println!("{:?}", event);
-        }
-    }
-    Ok(())
+    Ok(event)
 }
+
+// pub fn match_events(app_proxy: &ApplicationProxy, arg: &str) -> Result<(), VeloxError> {
+//     println!("{:?}", arg);
+//     let event: Event = serde_json::from_str(arg)?;
+//     let (s, r) = unbounded();
+//     s.send(event).unwrap();
+// plugin::splashscreen::show_splashscreen(app_proxy, r).unwrap();
+// let plugin = plugin::initialise_plugins();
+// plugin.run_plugins(&event, app_proxy);
+// // println!("{:?}", event);
+// match event {
+//     Event::VeloxEvent(velox_events) => {
+//         EVENT_EMITTER
+//             .lock()
+//             .unwrap()
+//             .emit("velox_event", velox_events);
+//     }
+//     // match velox_events {
+//     //     VeloxEvents::Initialised => {
+//     //         EVENT_EMITTER
+//     //             .lock()
+//     //             .unwrap()
+//     //             .emit("velox_event", velox_events);
+//     //     }
+//     //     VeloxEvents::Loaded => {}
+//     // },
+//     Event::ResourceEvent(event) => {
+//         println!("{:?}", event);
+//     }
+//     Event::NetworkEvent(event) => {
+//         println!("{:?}", event);
+//     }
+// }
+// Ok(())
+// }

@@ -13,6 +13,7 @@ pub mod cmd;
 pub mod config;
 pub mod events;
 pub mod handler;
+pub mod plugin;
 pub mod server;
 
 pub use crate::api::fs::file_system;

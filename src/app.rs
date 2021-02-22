@@ -1,11 +1,22 @@
 use crate::handler::handle_cmd;
-use crate::{config, events, server, VeloxError};
+use crate::{config, events, plugin, server, VeloxError};
 
 use wry::{Application, Attributes, Callback, WindowProxy};
 
-pub type InvokeHandler = Box<dyn FnMut(&mut WindowProxy, &str) -> Result<(), String> + Send>;
+use dyn_clonable::*;
+
+#[clonable]
+pub trait NewTrait: FnMut(&mut WindowProxy, &str) -> Result<(), String> + Clone {}
+
+pub type InvokeHandler = Box<dyn NewTrait + Send + Sync>;
+
+pub enum ContentType {
+    Url(String),
+    Html(String),
+}
 
 /// The application runner.
+#[derive(Clone)]
 pub struct App {
     pub name: String,
     pub debug: bool,
@@ -13,6 +24,7 @@ pub struct App {
     pub invoke_handler: Option<InvokeHandler>,
     /// Url of the local server where frontend is hosted
     pub url: String,
+    pub splashscreen: Option<String>,
 }
 
 impl App {
@@ -49,6 +61,7 @@ pub struct AppBuilder {
     pub invoke_handler: Option<InvokeHandler>,
     /// Url of the local server where frontend is hosted
     pub url: String,
+    pub splashscreen: Option<String>,
 }
 
 impl AppBuilder {
@@ -59,6 +72,12 @@ impl AppBuilder {
 
         let config = config::parse_config(&config).unwrap();
         let arg = std::env::args().find(|arg| arg.contains("target"));
+        // let splashscreen = if config.splashscreen.enable {
+        //     let html = include_str!(config.splashscreen.path)
+        //     Some(html)
+        // } else {
+        //     None
+        // };
 
         if let Some(_arg) = arg {
             Self {
@@ -66,6 +85,7 @@ impl AppBuilder {
                 debug: config.debug,
                 invoke_handler: None,
                 url: config.dev_server_url,
+                splashscreen: None,
             }
         } else {
             let port = pick_unused_port().expect("no unused port");
@@ -76,13 +96,24 @@ impl AppBuilder {
                 debug: config.debug,
                 invoke_handler: None,
                 url: "http://".to_owned() + &url,
+                splashscreen: None,
             }
+        }
+    }
+
+    pub fn show_splashscreen(self, content: String) -> Self {
+        Self {
+            name: self.name,
+            debug: self.debug,
+            invoke_handler: self.invoke_handler,
+            url: self.url,
+            splashscreen: Some("data:text/html,".to_string() + &content),
         }
     }
 
     /// Defines the JS message handler callback.
     pub fn invoke_handler<
-        F: FnMut(&mut WindowProxy, &str) -> Result<(), String> + Send + 'static,
+        F: FnMut(&mut WindowProxy, &str) -> Result<(), String> + Send + Sync + 'static + NewTrait,
     >(
         mut self,
         invoke_handler: F,
@@ -98,12 +129,14 @@ impl AppBuilder {
             debug: self.debug,
             invoke_handler: self.invoke_handler,
             url: self.url,
+            splashscreen: self.splashscreen,
         }
     }
 }
 
 ///Builds a webview instance with all the required details.
 pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxError> {
+    use crossbeam_channel::unbounded;
     // let mut webview = WebviewBuilder::new()
     //     .debug(app.debug)
     //     .title(app.name)
@@ -124,21 +157,46 @@ pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxE
     //     .dispatch(|_w| {})
     //     .url(app.url)
     //     .build();
+    let mut app = Application::new()?;
+
+    let app_proxy = app.application_proxy();
 
     let webview_attrib = Attributes {
         title: app_config.name.clone(),
         url: Some(app_config.url.clone()),
-        initialization_scripts: vec![],
+        initialization_scripts: vec![
+            // "".to_string(),
+            r#"
+              if (window.invoke) {{
+                window.invoke(JSON.stringify({veloxEvent: "initialised"}))
+              }} else {{
+                window.addEventListener('DOMContentLoaded', function () {{
+                  window.invoke(JSON.stringify({veloxEvent: "loaded"}))
+                }})
+              }}
+            "#
+            .to_string(),
+        ],
         ..Default::default()
     };
+
+    let (s, r) = unbounded();
+
+    let app_conf = app_config.clone();
+
     let callback = Callback {
         name: "invoke".to_string(),
         function: Box::new(move |mut proxy, _seq, arg| {
             // Todo - Add logic for handling calls from javascript
             match handle_cmd(&mut proxy, &parse_args(&arg)) {
                 Ok(()) => {}
-                Err(_err) => match events::match_events(&parse_args(&arg)) {
-                    Ok(()) => {}
+                // Err(_err) => match events::match_events(&app_proxy, &parse_args(&arg)) {
+                Err(_err) => match events::parse_event(&parse_args(&arg)) {
+                    Ok(event) => {
+                        if let Err(err) = s.send(event) {
+                            println!("{:?}", err.to_string());
+                        }
+                    }
                     Err(err) => {
                         println!("{:?}", err.to_string());
                         if let Ok(handled) =
@@ -154,25 +212,19 @@ pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxE
                     }
                 },
             }
-            // dispatcher
-            //     .dispatch_script("console.log('The anwser is ' + window.x);")
-            //     .unwrap();
             0
         }),
     };
 
-    let mut app = Application::new()?;
-    let _window1 = app.add_window(webview_attrib, Some(vec![callback]))?;
-    // app.create_webview(window1, webview_attrib, Some(vec![callback]))?;
+    let main_window = app.add_window(webview_attrib, Some(vec![callback]))?;
+
+    main_window.hide().unwrap();
+    plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
 
     Ok(app)
 }
 
 /// Parses arguments that came from javascript
 pub fn parse_args(args: &[String]) -> String {
-    // arg.chars()
-    //     .skip(1)
-    //     .take(arg.chars().count() - 2)
-    //     .collect::<String>()
     args.first().unwrap().to_string()
 }

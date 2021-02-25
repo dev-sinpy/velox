@@ -72,12 +72,6 @@ impl AppBuilder {
 
         let config = config::parse_config(&config).unwrap();
         let arg = std::env::args().find(|arg| arg.contains("target"));
-        // let splashscreen = if config.splashscreen.enable {
-        //     let html = include_str!(config.splashscreen.path)
-        //     Some(html)
-        // } else {
-        //     None
-        // };
 
         if let Some(_arg) = arg {
             Self {
@@ -137,26 +131,7 @@ impl AppBuilder {
 ///Builds a webview instance with all the required details.
 pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxError> {
     use crossbeam_channel::unbounded;
-    // let mut webview = WebviewBuilder::new()
-    //     .debug(app.debug)
-    //     .title(app.name)
-    //     .width(500)
-    //     .height(400)
-    //     .resize(SizeHint::NONE)
-    //     .init(""
-    //     //     r#"
-    //     //   if (window.invoke) {{
-    //     //     window.invoke(JSON.stringify({{ cmd: "__initialized" }}))
-    //     //   }} else {{
-    //     //     window.addEventListener('DOMContentLoaded', function () {{
-    //     //       window.invoke(JSON.stringify({{ cmd: "__initialized" }}))
-    //     //     }})
-    //     //   }}
-    //     // "#,
-    //     )
-    //     .dispatch(|_w| {})
-    //     .url(app.url)
-    //     .build();
+
     let mut app = Application::new()?;
 
     let app_proxy = app.application_proxy();
@@ -164,19 +139,7 @@ pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxE
     let webview_attrib = Attributes {
         title: app_config.name.clone(),
         url: Some(app_config.url.clone()),
-        initialization_scripts: vec![
-            // "".to_string(),
-            r#"
-              if (window.invoke) {{
-                window.invoke(JSON.stringify({veloxEvent: "initialised"}))
-              }} else {{
-                window.addEventListener('DOMContentLoaded', function () {{
-                  window.invoke(JSON.stringify({veloxEvent: "loaded"}))
-                }})
-              }}
-            "#
-            .to_string(),
-        ],
+        initialization_scripts: vec![init_script()],
         ..Default::default()
     };
 
@@ -222,6 +185,23 @@ pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxE
     plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
 
     Ok(app)
+}
+
+fn init_script() -> String {
+    let velox_script = include_str!("js/velox.js");
+    format!(
+        r#"
+                      {velox_script}
+                      if (window.invoke) {{
+                        window.invoke(JSON.stringify({{veloxEvent: "initialised"}}))
+                      }} else {{
+                        window.addEventListener('DOMContentLoaded', function () {{
+                          window.invoke(JSON.stringify({{veloxEvent: "loaded"}}))
+                        }})
+                      }}
+                    "#,
+        velox_script = velox_script
+    )
 }
 
 /// Parses arguments that came from javascript

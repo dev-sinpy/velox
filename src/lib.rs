@@ -43,9 +43,11 @@ custom_error! {
     DialogError{detail: String} = "{detail}",
 }
 
+pub type Result<T> = std::result::Result<T, VeloxError>;
+
 pub fn execute_cmd_async<
     T: 'static + Serialize + Send,
-    F: 'static + FnOnce() -> Result<T, VeloxError> + Send,
+    F: 'static + FnOnce() -> std::result::Result<T, VeloxError> + Send,
 >(
     task: F,
     proxy: Arc<WindowProxy>,
@@ -61,7 +63,7 @@ pub fn execute_cmd_async<
 
 /// Executes a given task in a new thread and passes return value
 /// to a webview instance to return the data to frontend.
-pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
+pub fn execute_cmd<T: Serialize, F: FnOnce() -> std::result::Result<T, VeloxError>>(
     task: F,
     proxy: Arc<WindowProxy>,
     success_callback: String,
@@ -89,7 +91,7 @@ pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
 }
 
 pub fn format_callback_result<T: Serialize, E: Display>(
-    result: Result<T, E>,
+    result: std::result::Result<T, E>,
     success_callback: String,
     error_callback: String,
 ) -> String {

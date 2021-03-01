@@ -1,19 +1,61 @@
 use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
 use crate::api::subprocess;
+use crate::api::window;
 use crate::cmd::*;
 use crate::{execute_cmd_async, VeloxError};
 
 use std::sync::Arc;
-use wry::WindowProxy;
 
 /// A command handler which passes commands from webview to the velox-api
-pub fn handle_cmd(proxy: Arc<WindowProxy>, arg: &str) -> Result<(), VeloxError> {
+pub fn handle_cmd(proxy: Arc<wry::WindowProxy>, arg: &str) -> Result<(), VeloxError> {
     use crate::cmd::Cmd::*;
 
     let command: Cmd = serde_json::from_str(arg)?;
 
     match command {
+        Window(window_proxy) => match window_proxy {
+            WindowProxy::SetTitle {
+                title,
+                success_callback,
+                error_callback,
+            } => {
+                let new_proxy = proxy.clone();
+                execute_cmd_async(
+                    move || window::set_title(title, new_proxy),
+                    proxy,
+                    success_callback,
+                    error_callback,
+                );
+            }
+            WindowProxy::SetTransparent {
+                transparent,
+                success_callback,
+                error_callback,
+            } => {
+                let new_proxy = proxy.clone();
+                execute_cmd_async(
+                    move || window::set_transparent(transparent, new_proxy),
+                    proxy,
+                    success_callback,
+                    error_callback,
+                );
+            }
+            WindowProxy::SetFullscreen {
+                fullscreen,
+                success_callback,
+                error_callback,
+            } => {
+                let new_proxy = proxy.clone();
+                execute_cmd_async(
+                    move || window::set_fullscreen(fullscreen, new_proxy),
+                    proxy,
+                    success_callback,
+                    error_callback,
+                );
+            }
+        },
+
         Notification(noti) => match noti {
             Notify::ShowNotification {
                 summary,

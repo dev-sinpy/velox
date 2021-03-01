@@ -20,12 +20,12 @@ pub use crate::api::fs::file_system;
 pub use app::AppBuilder;
 pub use config::VeloxConfig;
 
-use confy::ConfyError;
 use serde::Serialize;
 use serde_json::json;
 use serde_json::Value as JsonValue;
 use std::fmt::{Debug, Display};
 use std::io;
+use std::sync::Arc;
 use toml::de;
 use wry::WindowProxy;
 
@@ -35,7 +35,6 @@ custom_error! {
     /// If something goes wrong these errors will be returned
     pub VeloxError
     WryError{source: wry::Error} = "{source}",
-    ConfigError{source: ConfyError} = "{source}",
     TomlError{source: de::Error} = "{source}",
     CommandError{source: serde_json::error::Error} = "{source}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
@@ -44,11 +43,27 @@ custom_error! {
     DialogError{detail: String} = "{detail}",
 }
 
+pub fn execute_cmd_async<
+    T: 'static + Serialize + Send,
+    F: 'static + FnOnce() -> Result<T, VeloxError> + Send,
+>(
+    task: F,
+    proxy: Arc<WindowProxy>,
+    success_callback: String,
+    error_callback: String,
+) {
+    let pool = threadpool::Builder::new().build();
+    pool.execute(move || {
+        let js = format_callback_result(task(), success_callback, error_callback);
+        proxy.evaluate_script(&js).unwrap();
+    });
+}
+
 /// Executes a given task in a new thread and passes return value
 /// to a webview instance to return the data to frontend.
 pub fn execute_cmd<T: Serialize, F: FnOnce() -> Result<T, VeloxError>>(
     task: F,
-    proxy: &mut WindowProxy,
+    proxy: Arc<WindowProxy>,
     success_callback: String,
     error_callback: String,
 ) {

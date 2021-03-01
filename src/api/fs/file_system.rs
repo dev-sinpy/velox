@@ -87,7 +87,7 @@ pub enum FilePath {
     Multiple(Vec<String>),
 }
 
-pub fn open_dialog(multiple: bool, filter: Option<Vec<String>>) -> Result<FilePath, VeloxError> {
+pub fn open_dialog(multiple: bool, _filter: Option<Vec<String>>) -> Result<FilePath, VeloxError> {
     // function for opening a native file chooser dialog.
     if multiple {
         let path = open_file_dialog_multi("select file", ".", None);
@@ -120,9 +120,13 @@ pub fn select_folder() -> Result<String, VeloxError> {
 }
 
 /// function for saving bytes of data to a file.
-pub fn save_file(path: &Path, content: &[u8], mode: String) -> Result<String, VeloxError> {
+pub fn save_file<T: std::convert::AsRef<Path>>(
+    path: T,
+    content: &[u8],
+    mode: String,
+) -> Result<String, VeloxError> {
     use fs::OpenOptions;
-    if path.exists() && path.is_file() {
+    if path.as_ref().exists() && path.as_ref().is_file() {
         let mut buffer = match mode.as_str() {
             "w" => OpenOptions::new().read(true).write(true).open(path)?,
             "a" => OpenOptions::new().append(true).open(path)?,
@@ -134,7 +138,7 @@ pub fn save_file(path: &Path, content: &[u8], mode: String) -> Result<String, Ve
         };
         write_file(&mut buffer, content)
     } else {
-        match save_file_dialog("save file", path.to_str().unwrap()) {
+        match save_file_dialog("save file", path.as_ref().to_str().unwrap()) {
             Some(path) => {
                 let mut buffer = match mode.as_str() {
                     "w" => OpenOptions::new().read(true).write(true).open(path)?,

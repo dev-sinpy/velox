@@ -2,13 +2,13 @@ use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
 use crate::api::subprocess;
 use crate::cmd::*;
-use crate::{execute_cmd, VeloxError};
+use crate::{execute_cmd_async, VeloxError};
 
-use std::path::Path;
+use std::sync::Arc;
 use wry::WindowProxy;
 
 /// A command handler which passes commands from webview to the velox-api
-pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> {
+pub fn handle_cmd(proxy: Arc<WindowProxy>, arg: &str) -> Result<(), VeloxError> {
     use crate::cmd::Cmd::*;
 
     let command: Cmd = serde_json::from_str(arg)?;
@@ -22,8 +22,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || show_notification(summary, body, timeout),
+                execute_cmd_async(
+                    move || show_notification(summary, body, timeout),
                     proxy,
                     success_callback,
                     error_callback,
@@ -39,8 +39,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || subprocess::exec(&cmd, cwd, stream_output),
+                execute_cmd_async(
+                    move || subprocess::exec(&cmd, cwd, stream_output),
                     proxy,
                     success_callback,
                     error_callback,
@@ -54,8 +54,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::read_dir(path),
+                execute_cmd_async(
+                    move || file_system::read_dir(path),
                     proxy,
                     success_callback,
                     error_callback,
@@ -67,8 +67,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::read_text_file(path),
+                execute_cmd_async(
+                    move || file_system::read_text_file(path),
                     proxy,
                     success_callback,
                     error_callback,
@@ -80,8 +80,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::create_dir(path),
+                execute_cmd_async(
+                    move || file_system::create_dir(path),
                     proxy,
                     success_callback,
                     error_callback,
@@ -93,8 +93,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::create_file(path),
+                execute_cmd_async(
+                    move || file_system::create_file(path),
                     proxy,
                     success_callback,
                     error_callback,
@@ -106,8 +106,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::remove_file(path),
+                execute_cmd_async(
+                    move || file_system::remove_file(path),
                     proxy,
                     success_callback,
                     error_callback,
@@ -119,8 +119,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::remove_dir(path),
+                execute_cmd_async(
+                    move || file_system::remove_dir(path),
                     proxy,
                     success_callback,
                     error_callback,
@@ -133,8 +133,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::copy_file(from, to),
+                execute_cmd_async(
+                    move || file_system::copy_file(from, to),
                     proxy,
                     success_callback,
                     error_callback,
@@ -147,8 +147,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::rename_file(from, to),
+                execute_cmd_async(
+                    move || file_system::rename_file(from, to),
                     proxy,
                     success_callback,
                     error_callback,
@@ -161,8 +161,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::open_dialog(multiple, filter),
+                execute_cmd_async(
+                    move || file_system::open_dialog(multiple, filter),
                     proxy,
                     success_callback,
                     error_callback,
@@ -173,7 +173,7 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
+                execute_cmd_async(
                     file_system::select_folder,
                     proxy,
                     success_callback,
@@ -187,9 +187,8 @@ pub fn handle_cmd(proxy: &mut WindowProxy, arg: &str) -> Result<(), VeloxError> 
                 success_callback,
                 error_callback,
             } => {
-                let path_buf = Path::new(&path);
-                execute_cmd(
-                    || file_system::save_file(path_buf, &content[..], mode),
+                execute_cmd_async(
+                    move || file_system::save_file(path, &content[..], mode),
                     proxy,
                     success_callback,
                     error_callback,

@@ -1,14 +1,12 @@
 use crate::handler::handle_cmd;
 use crate::{config, events, plugin, server, VeloxError};
 
+use std::sync::{Arc, Mutex};
+
 use wry::{Application, Attributes, Callback, WindowProxy};
 
-use dyn_clonable::*;
-
-#[clonable]
-pub trait NewTrait: FnMut(&mut WindowProxy, &str) -> Result<(), String> + Clone {}
-
-pub type InvokeHandler = Box<dyn NewTrait + Send + Sync>;
+pub type InvokeHandler =
+    Arc<Mutex<dyn FnMut(Arc<WindowProxy>, &str) -> Result<(), String> + Send + Sync>>;
 
 pub enum ContentType {
     Url(String),
@@ -30,7 +28,7 @@ pub struct App {
 impl App {
     /// Runs the app until it finishes.
     pub fn run(self) -> Result<(), String> {
-        let application = build_webview(Box::leak(Box::new(self))).unwrap();
+        let application = build_webview(self).unwrap();
         // run the webview
         application.run();
 
@@ -42,11 +40,11 @@ impl App {
     /// The message is considered consumed if the handler exists and returns an Ok Result.
     pub fn run_invoke_handler(
         &mut self,
-        dispatcher: &mut WindowProxy,
+        dispatcher: Arc<WindowProxy>,
         arg: &str,
     ) -> Result<bool, String> {
         if let Some(ref mut invoke_handler) = self.invoke_handler {
-            invoke_handler(dispatcher, arg).map(|_| true)
+            invoke_handler.lock().unwrap()(dispatcher, arg).map(|_| true)
         } else {
             Ok(false)
         }
@@ -107,12 +105,12 @@ impl AppBuilder {
 
     /// Defines the JS message handler callback.
     pub fn invoke_handler<
-        F: FnMut(&mut WindowProxy, &str) -> Result<(), String> + Send + Sync + 'static + NewTrait,
+        F: FnMut(Arc<WindowProxy>, &str) -> Result<(), String> + Send + Sync + 'static,
     >(
         mut self,
         invoke_handler: F,
     ) -> Self {
-        self.invoke_handler = Some(Box::new(invoke_handler));
+        self.invoke_handler = Some(Arc::new(Mutex::new(invoke_handler)));
         self
     }
 
@@ -129,7 +127,7 @@ impl AppBuilder {
 }
 
 ///Builds a webview instance with all the required details.
-pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxError> {
+pub fn build_webview(mut app_config: App) -> Result<Application, VeloxError> {
     use crossbeam_channel::unbounded;
 
     let mut app = Application::new()?;
@@ -149,9 +147,10 @@ pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxE
 
     let callback = Callback {
         name: "invoke".to_string(),
-        function: Box::new(move |mut proxy, _seq, arg| {
+        function: Box::new(move |proxy, _seq, arg| {
             // Todo - Add logic for handling calls from javascript
-            match handle_cmd(&mut proxy, &parse_args(&arg)) {
+            let arc_proxy = Arc::new(proxy);
+            match handle_cmd(arc_proxy.clone(), &parse_args(&arg)) {
                 Ok(()) => {}
                 // Err(_err) => match events::match_events(&app_proxy, &parse_args(&arg)) {
                 Err(_err) => match events::parse_event(&parse_args(&arg)) {
@@ -163,7 +162,7 @@ pub fn build_webview(app_config: &'static mut App) -> Result<Application, VeloxE
                     Err(err) => {
                         println!("{:?}", err.to_string());
                         if let Ok(handled) =
-                            app_config.run_invoke_handler(&mut proxy, &parse_args(&arg))
+                            app_config.run_invoke_handler(arc_proxy, &parse_args(&arg))
                         {
                             if handled {
                                 // String::from("")

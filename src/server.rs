@@ -1,73 +1,72 @@
 use std::fs;
-use std::io::Cursor;
-use std::io::Read;
+// use std::io::Cursor;
 use std::path::Path;
-use std::sync::Arc;
-use std::thread::{self, spawn};
+use std::thread::spawn;
 
 use crate::assets;
 use crate::config;
-use tiny_http::{self, ReadWrite, Request, Response};
+use tiny_http::{self, Request, Response};
 
-enum Route<F> {
-    Homepage { req: Request, func: F },
-    Error404 { req: Request, func: F },
-}
+// enum Route<F> {
+//     Homepage { req: Request, func: F },
+//     Error404 { req: Request, func: F },
+// }
 
-enum ResponseType {
-    Success(ResponseKind),
-    Error(ResponseKind),
-}
+// enum ResponseType {
+//     Success(ResponseKind),
+//     Error(ResponseKind),
+// }
 
-enum ResponseKind {
-    File(Response<fs::File>),
-    Text(Response<Cursor<Vec<u8>>>),
-}
+// enum ResponseKind {
+//     File(Response<fs::File>),
+//     Text(Response<Cursor<Vec<u8>>>),
+// }
 
-impl Route<Box<dyn FnOnce() -> ResponseType>> {
-    fn handle_req(req: Request, config: &config::VeloxConfig) {
-        match req.url() {
-            "/" => home_screen(req, config),
+// impl Route<Box<dyn FnOnce() -> ResponseType>> {
 
-            _ => serve_assets(req, config),
-        };
-    }
+//     fn _respond(self) {
+//         match self {
+//             Route::Homepage { req, func } => match func() {
+//                 ResponseType::Success(response_type) => match response_type {
+//                     ResponseKind::File(res) => {
+//                         req.respond(res).unwrap();
+//                     }
+//                     ResponseKind::Text(res) => {
+//                         req.respond(res).unwrap();
+//                     }
+//                 },
+//                 ResponseType::Error(response_type) => match response_type {
+//                     ResponseKind::File(res) => {
+//                         req.respond(res).unwrap();
+//                     }
+//                     ResponseKind::Text(res) => {
+//                         req.respond(res).unwrap();
+//                     }
+//                 },
+//             },
 
-    fn respond(self) {
-        match self {
-            Route::Homepage { req, func } => match func() {
-                ResponseType::Success(response_type) => match response_type {
-                    ResponseKind::File(res) => {
-                        req.respond(res).unwrap();
-                    }
-                    ResponseKind::Text(res) => {
-                        req.respond(res).unwrap();
-                    }
-                },
-                ResponseType::Error(response_type) => match response_type {
-                    ResponseKind::File(res) => {
-                        req.respond(res).unwrap();
-                    }
-                    ResponseKind::Text(res) => {
-                        req.respond(res).unwrap();
-                    }
-                },
-            },
+//             Route::Error404 { req, func } => match func() {
+//                 ResponseType::Error(response_type) => match response_type {
+//                     ResponseKind::File(res) => {
+//                         req.respond(res).unwrap();
+//                     }
+//                     ResponseKind::Text(res) => {
+//                         req.respond(res).unwrap();
+//                     }
+//                 },
 
-            Route::Error404 { req, func } => match func() {
-                ResponseType::Error(response_type) => match response_type {
-                    ResponseKind::File(res) => {
-                        req.respond(res).unwrap();
-                    }
-                    ResponseKind::Text(res) => {
-                        req.respond(res).unwrap();
-                    }
-                },
+//                 _ => panic!("Error route cannot respond with any other response type"),
+//             },
+//         }
+//     }
+// }
 
-                _ => panic!("Error route cannot respond with any other response type"),
-            },
-        }
-    }
+fn handle_req(req: Request, config: &config::VeloxConfig) {
+    match req.url() {
+        "/" => home_screen(req, config),
+
+        _ => serve_assets(req, config),
+    };
 }
 
 pub fn spawn_server(addrs: &str, config: config::VeloxConfig) {
@@ -75,7 +74,7 @@ pub fn spawn_server(addrs: &str, config: config::VeloxConfig) {
     println!("Server spawned on url: {:?}", addrs);
     spawn(move || loop {
         match server.recv() {
-            Ok(req) => Route::handle_req(req, &config),
+            Ok(req) => handle_req(req, &config),
             Err(e) => {
                 println!("error: {}", e);
                 break;
@@ -100,7 +99,7 @@ fn home_screen(req: Request, config: &config::VeloxConfig) {
                 .unwrap(),
         );
 
-    req.respond(response);
+    req.respond(response).unwrap();
 }
 
 fn serve_assets(req: Request, config: &config::VeloxConfig) {
@@ -119,10 +118,10 @@ fn serve_assets(req: Request, config: &config::VeloxConfig) {
                     .parse::<tiny_http::Header>()
                     .unwrap(),
             );
-        req.respond(response);
+        req.respond(response).unwrap();
     } else {
         let response = Response::empty(404);
-        req.respond(response);
+        req.respond(response).unwrap();
     }
 }
 

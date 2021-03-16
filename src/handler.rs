@@ -1,19 +1,61 @@
 use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
 use crate::api::subprocess;
+use crate::api::window;
 use crate::cmd::*;
-use crate::{execute_cmd, VeloxError};
+use crate::{execute_cmd_async, VeloxError};
 
-use std::path::Path;
-use webview_official::Webview;
+use std::sync::Arc;
 
 /// A command handler which passes commands from webview to the velox-api
-pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError> {
+pub fn handle_cmd(proxy: Arc<wry::WindowProxy>, arg: &str) -> Result<(), VeloxError> {
     use crate::cmd::Cmd::*;
 
     let command: Cmd = serde_json::from_str(arg)?;
 
     match command {
+        Window(window_proxy) => match window_proxy {
+            WindowProxy::SetTitle {
+                title,
+                success_callback,
+                error_callback,
+            } => {
+                let new_proxy = proxy.clone();
+                execute_cmd_async(
+                    move || window::set_title(title, new_proxy),
+                    proxy,
+                    success_callback,
+                    error_callback,
+                );
+            }
+            WindowProxy::SetTransparent {
+                transparent,
+                success_callback,
+                error_callback,
+            } => {
+                let new_proxy = proxy.clone();
+                execute_cmd_async(
+                    move || window::set_transparent(transparent, new_proxy),
+                    proxy,
+                    success_callback,
+                    error_callback,
+                );
+            }
+            WindowProxy::SetFullscreen {
+                fullscreen,
+                success_callback,
+                error_callback,
+            } => {
+                let new_proxy = proxy.clone();
+                execute_cmd_async(
+                    move || window::set_fullscreen(fullscreen, new_proxy),
+                    proxy,
+                    success_callback,
+                    error_callback,
+                );
+            }
+        },
+
         Notification(noti) => match noti {
             Notify::ShowNotification {
                 summary,
@@ -22,9 +64,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || show_notification(summary, body, timeout),
-                    webview,
+                execute_cmd_async(
+                    move || show_notification(summary, body, timeout),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -39,9 +81,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || subprocess::exec(&cmd, cwd, stream_output),
-                    webview,
+                execute_cmd_async(
+                    move || subprocess::exec(&cmd, cwd, stream_output),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -54,9 +96,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::read_dir(path),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::read_dir(path),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -67,9 +109,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::read_text_file(path),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::read_text_file(path),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -80,9 +122,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::create_dir(path),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::create_dir(path),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -93,9 +135,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::create_file(path),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::create_file(path),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -106,9 +148,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::remove_file(path),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::remove_file(path),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -119,9 +161,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::remove_dir(path),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::remove_dir(path),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -133,9 +175,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::copy_file(from, to),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::copy_file(from, to),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -147,9 +189,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::rename_file(from, to),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::rename_file(from, to),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -161,9 +203,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
-                    || file_system::open_dialog(multiple, filter),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::open_dialog(multiple, filter),
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -173,9 +215,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                execute_cmd(
+                execute_cmd_async(
                     file_system::select_folder,
-                    webview,
+                    proxy,
                     success_callback,
                     error_callback,
                 );
@@ -187,10 +229,9 @@ pub fn handle_cmd(webview: &mut Webview<'_>, arg: &str) -> Result<(), VeloxError
                 success_callback,
                 error_callback,
             } => {
-                let path_buf = Path::new(&path);
-                execute_cmd(
-                    || file_system::save_file(path_buf, &content[..], mode),
-                    webview,
+                execute_cmd_async(
+                    move || file_system::save_file(path, &content[..], mode),
+                    proxy,
                     success_callback,
                     error_callback,
                 );

@@ -2,7 +2,6 @@ use crate::VeloxError;
 use portpicker::pick_unused_port;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
-use threadpool::ThreadPool;
 use tungstenite::server::accept;
 
 /// Spawns a new subprocess and returns a process handle.
@@ -33,7 +32,7 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
                 .unwrap_or_else(|_| panic!("SubProcessError: Failed to run command `{}`", cmd))
         };
         let port = pick_unused_port().expect("no unused port");
-        let pool = ThreadPool::new(1);
+        let pool = threadpool::Builder::new().build();
         pool.execute(move || {
             let child_stdout = child.stdout.unwrap();
             let reader = std::io::BufReader::new(child_stdout);

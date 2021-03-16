@@ -1,27 +1,36 @@
 use crate::handler::handle_cmd;
-use crate::{config, server, VeloxError};
+use crate::{config, events, plugin, server, VeloxError};
 
-use std::path::Path;
-use webview_official::{SizeHint, Webview, WebviewBuilder};
+use std::sync::{Arc, Mutex};
 
-pub type InvokeHandler = Box<dyn FnMut(&mut Webview<'_>, &str) -> Result<(), String>>;
+use wry::{Application, Attributes, Callback, WindowProxy};
+
+pub type InvokeHandler =
+    Arc<Mutex<dyn FnMut(Arc<WindowProxy>, &str) -> Result<(), String> + Send + Sync>>;
+
+pub enum ContentType {
+    Url(String),
+    Html(String),
+}
 
 /// The application runner.
+#[derive(Clone)]
 pub struct App {
-    pub name: &'static str,
+    pub name: String,
     pub debug: bool,
     /// The JS message handler.
     pub invoke_handler: Option<InvokeHandler>,
     /// Url of the local server where frontend is hosted
-    pub url: &'static str,
+    pub url: String,
+    pub splashscreen: Option<String>,
 }
 
 impl App {
     /// Runs the app until it finishes.
-    pub fn run(mut self) -> Result<(), String> {
-        let mut webview = build_webview(&mut self).unwrap();
+    pub fn run(self) -> Result<(), String> {
+        let application = build_webview(self).unwrap();
         // run the webview
-        webview.run();
+        application.run();
 
         Ok(())
     }
@@ -31,11 +40,11 @@ impl App {
     /// The message is considered consumed if the handler exists and returns an Ok Result.
     pub fn run_invoke_handler(
         &mut self,
-        webview: &mut Webview<'_>,
+        dispatcher: Arc<WindowProxy>,
         arg: &str,
     ) -> Result<bool, String> {
         if let Some(ref mut invoke_handler) = self.invoke_handler {
-            invoke_handler(webview, arg).map(|_| true)
+            invoke_handler.lock().unwrap()(dispatcher, arg).map(|_| true)
         } else {
             Ok(false)
         }
@@ -43,14 +52,14 @@ impl App {
 }
 
 /// The App builder.
-#[derive(Default)]
 pub struct AppBuilder {
-    pub name: &'static str,
+    pub name: String,
     pub debug: bool,
     /// The JS message handler.
     pub invoke_handler: Option<InvokeHandler>,
     /// Url of the local server where frontend is hosted
-    pub url: &'static str,
+    pub url: String,
+    pub splashscreen: Option<String>,
 }
 
 impl AppBuilder {
@@ -64,30 +73,44 @@ impl AppBuilder {
 
         if let Some(_arg) = arg {
             Self {
-                name: Box::leak(config.name.into_boxed_str()),
+                name: config.name,
                 debug: config.debug,
                 invoke_handler: None,
-                url: Box::leak(config.dev_server_url.into_boxed_str()),
+                url: config.dev_server_url,
+                splashscreen: None,
             }
         } else {
             let port = pick_unused_port().expect("no unused port");
             let url = format!("127.0.0.1:{}", port);
             server::spawn_server(&url, config.clone());
             Self {
-                name: Box::leak(config.name.into_boxed_str()),
+                name: config.name,
                 debug: config.debug,
                 invoke_handler: None,
-                url: Box::leak(Box::new("http://".to_owned() + &url)),
+                url: "http://".to_owned() + &url,
+                splashscreen: None,
             }
         }
     }
 
+    pub fn show_splashscreen(self, content: String) -> Self {
+        Self {
+            name: self.name,
+            debug: self.debug,
+            invoke_handler: self.invoke_handler,
+            url: self.url,
+            splashscreen: Some("data:text/html,".to_string() + &content),
+        }
+    }
+
     /// Defines the JS message handler callback.
-    pub fn invoke_handler<F: FnMut(&mut Webview<'_>, &str) -> Result<(), String> + 'static>(
+    pub fn invoke_handler<
+        F: FnMut(Arc<WindowProxy>, &str) -> Result<(), String> + Send + Sync + 'static,
+    >(
         mut self,
         invoke_handler: F,
     ) -> Self {
-        self.invoke_handler = Some(Box::new(invoke_handler));
+        self.invoke_handler = Some(Arc::new(Mutex::new(invoke_handler)));
         self
     }
 
@@ -98,51 +121,89 @@ impl AppBuilder {
             debug: self.debug,
             invoke_handler: self.invoke_handler,
             url: self.url,
+            splashscreen: self.splashscreen,
         }
     }
 }
 
-pub fn build_static(path: &Path) {}
-
 ///Builds a webview instance with all the required details.
-pub fn build_webview(app: &mut App) -> Result<Webview<'static>, VeloxError> {
-    let mut webview = WebviewBuilder::new()
-        .debug(app.debug)
-        .title(app.name)
-        .width(500)
-        .height(400)
-        .resize(SizeHint::NONE)
-        .init("")
-        .dispatch(|w| {})
-        .url(app.url)
-        .build();
+pub fn build_webview(mut app_config: App) -> Result<Application, VeloxError> {
+    use crossbeam_channel::unbounded;
 
-    let mut w = webview.clone();
+    let mut app = Application::new()?;
 
-    webview.bind("invoke", move |_seq, arg| {
-        //Todo - Add logic for handling calls from javascript
-        match handle_cmd(&mut w, &parse_arg(arg)) {
-            Ok(()) => {}
-            Err(err) => match app.run_invoke_handler(&mut w, &parse_arg(arg)) {
-                Ok(handled) => {
-                    // if handled {
-                    //     // String::from("")
-                    // } else {
-                    //     // call middleware
-                    // }
-                }
-                _ => {}
-            },
-        }
-    });
+    let app_proxy = app.application_proxy();
 
-    Ok(webview)
+    let webview_attrib = Attributes {
+        title: app_config.name.clone(),
+        url: Some(app_config.url.clone()),
+        initialization_scripts: vec![init_script()],
+        ..Default::default()
+    };
+
+    let (s, r) = unbounded();
+
+    let app_conf = app_config.clone();
+
+    let callback = Callback {
+        name: "invoke".to_string(),
+        function: Box::new(move |proxy, _seq, arg| {
+            // Todo - Add logic for handling calls from javascript
+            let arc_proxy = Arc::new(proxy);
+            match handle_cmd(arc_proxy.clone(), &parse_args(&arg)) {
+                Ok(()) => {}
+                // Err(_err) => match events::match_events(&app_proxy, &parse_args(&arg)) {
+                Err(_err) => match events::parse_event(&parse_args(&arg)) {
+                    Ok(event) => {
+                        if let Err(err) = s.send(event) {
+                            println!("{:?}", err.to_string());
+                        }
+                    }
+                    Err(err) => {
+                        println!("{:?}", err.to_string());
+                        if let Ok(handled) =
+                            app_config.run_invoke_handler(arc_proxy, &parse_args(&arg))
+                        {
+                            if handled {
+                                // String::from("")
+                                println!("handled");
+                            } else {
+                                println!("not handled");
+                            }
+                        }
+                    }
+                },
+            }
+            0
+        }),
+    };
+
+    let main_window = app.add_window(webview_attrib, Some(vec![callback]))?;
+
+    main_window.hide().unwrap();
+    plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
+
+    Ok(app)
+}
+
+fn init_script() -> String {
+    let velox_script = include_str!("js/velox.js");
+    format!(
+        r#"
+                      {velox_script}
+                      if (window.invoke) {{
+                        window.invoke(JSON.stringify({{veloxEvent: "initialised"}}))
+                      }} else {{
+                        window.addEventListener('DOMContentLoaded', function () {{
+                          window.invoke(JSON.stringify({{veloxEvent: "loaded"}}))
+                        }})
+                      }}
+                    "#,
+        velox_script = velox_script
+    )
 }
 
 /// Parses arguments that came from javascript
-pub fn parse_arg(arg: &str) -> String {
-    arg.chars()
-        .skip(1)
-        .take(arg.chars().count() - 2)
-        .collect::<String>()
+pub fn parse_args(args: &[String]) -> String {
+    args.first().unwrap().to_string()
 }

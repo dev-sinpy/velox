@@ -67,7 +67,14 @@ pub struct VeloxConfig {
     pub dev_server_url: String,
     pub package_manager: String,
     pub build_dir: String,
+    // pub splashscreen: Splashscreen,
 }
+
+// #[derive(Serialize, Deserialize, Clone)]
+// pub struct Splashscreen {
+//     pub enable: bool,
+//     pub path: String,
+// }
 
 pub fn parse_cargo_config() -> Result<CargoSettings, VeloxError> {
     use std::fs;

@@ -10,6 +10,52 @@ pub enum Cmd {
     FileSystem(FsApi),
     Notification(Notify),
     SubProcess(Process),
+    Window(WindowProxy),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum WindowProxy {
+    SetTitle {
+        title: String,
+        success_callback: String,
+        error_callback: String,
+    },
+    // Maximize {
+    //     success_callback: String,
+    //     error_callback: String,
+    // },
+
+    // Minimize {
+    //     success_callback: String,
+    //     error_callback: String,
+    // },
+
+    // Show {
+    //     success_callback: String,
+    //     error_callback: String,
+    // },
+
+    // Hide {
+    //     success_callback: String,
+    //     error_callback: String,
+    // },
+    SetTransparent {
+        transparent: bool,
+        success_callback: String,
+        error_callback: String,
+    },
+
+    // SetDecorations {
+    //     decorations: bool,
+    //     success_callback: String,
+    //     error_callback: String,
+    // },
+    SetFullscreen {
+        fullscreen: bool,
+        success_callback: String,
+        error_callback: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]

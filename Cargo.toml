@@ -9,16 +9,15 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-webview_official = "0.0.3"
-base64 = "0.13.0"
+wry = {git = "https://github.com/tauri-apps/wry/", branch = "master"}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+crossbeam-channel = "0.5.0"
 toml = "0.5.8"
 tinyfiledialogs = "3.3.10"
 content_inspector = "0.2.4"
 notify-rust = "4"
 custom_error = "1.8.0"
-confy = "0.4.0"
 tungstenite = "*"
 threadpool = "*"
 tiny_http = "0.7.0"

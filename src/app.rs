@@ -1,12 +1,12 @@
-use crate::handler::handle_cmd;
+use crate::handler::call_func;
 use crate::{config, events, plugin, server, VeloxError};
 
 use std::sync::{Arc, Mutex};
 
-use wry::{Application, Attributes, Callback, WindowProxy};
+use wry::{Application, Attributes, RpcRequest, WindowProxy};
 
 pub type InvokeHandler =
-    Arc<Mutex<dyn FnMut(Arc<WindowProxy>, &str) -> Result<(), String> + Send + Sync>>;
+    Arc<Mutex<dyn FnMut(Arc<WindowProxy>, Request) -> Option<wry::Value> + Send + Sync>>;
 
 pub enum ContentType {
     Url(String),
@@ -25,6 +25,13 @@ pub struct App {
     pub splashscreen: Option<String>,
 }
 
+/// The application runner.
+#[derive(Clone, Debug)]
+pub struct Request {
+    pub method_name: String,
+    pub params: Vec<wry::Value>,
+}
+
 impl App {
     /// Runs the app until it finishes.
     pub fn run(self) -> Result<(), String> {
@@ -39,14 +46,14 @@ impl App {
     /// Returns whether the message was consumed or not.
     /// The message is considered consumed if the handler exists and returns an Ok Result.
     pub fn run_invoke_handler(
-        &mut self,
+        &self,
         dispatcher: Arc<WindowProxy>,
-        arg: &str,
-    ) -> Result<bool, String> {
-        if let Some(ref mut invoke_handler) = self.invoke_handler {
-            invoke_handler.lock().unwrap()(dispatcher, arg).map(|_| true)
+        req: Request,
+    ) -> Option<wry::Value> {
+        if let Some(invoke_handler) = &self.invoke_handler {
+            invoke_handler.lock().unwrap()(dispatcher, req)
         } else {
-            Ok(false)
+            None
         }
     }
 }
@@ -105,7 +112,7 @@ impl AppBuilder {
 
     /// Defines the JS message handler callback.
     pub fn invoke_handler<
-        F: FnMut(Arc<WindowProxy>, &str) -> Result<(), String> + Send + Sync + 'static,
+        F: FnMut(Arc<WindowProxy>, Request) -> Option<wry::Value> + Send + Sync + 'static,
     >(
         mut self,
         invoke_handler: F,
@@ -127,8 +134,10 @@ impl AppBuilder {
 }
 
 ///Builds a webview instance with all the required details.
-pub fn build_webview(mut app_config: App) -> Result<Application, VeloxError> {
+pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
+    use crate::{convert_into_json, Response};
     use crossbeam_channel::unbounded;
+    use wry::webview::RpcResponse;
 
     let mut app = Application::new()?;
 
@@ -145,40 +154,59 @@ pub fn build_webview(mut app_config: App) -> Result<Application, VeloxError> {
 
     let app_conf = app_config.clone();
 
-    let callback = Callback {
-        name: "invoke".to_string(),
-        function: Box::new(move |proxy, _seq, arg| {
-            // Todo - Add logic for handling calls from javascript
-            let arc_proxy = Arc::new(proxy);
-            match handle_cmd(arc_proxy.clone(), &parse_args(&arg)) {
-                Ok(()) => {}
-                // Err(_err) => match events::match_events(&app_proxy, &parse_args(&arg)) {
-                Err(_err) => match events::parse_event(&parse_args(&arg)) {
-                    Ok(event) => {
-                        if let Err(err) = s.send(event) {
-                            println!("{:?}", err.to_string());
+    let handler = Box::new(move |proxy: WindowProxy, req: RpcRequest| {
+        let params = if let wry::Value::Array(params) = req.params.unwrap() {
+            params.to_vec()
+        } else {
+            vec![]
+        };
+
+        let request = Request {
+            method_name: req.method.clone(),
+            params: params.clone(),
+        };
+
+        if let Some(id) = req.id {
+            match call_func(proxy.clone(), req.method.clone(), params) {
+                Ok(val) => Some(RpcResponse::new_result(Some(id), Some(val))),
+
+                Err(err) => match err {
+                    VeloxError::CommandError { detail: _ } => {
+                        let arc_proxy = Arc::new(proxy);
+                        if let Some(value) = app_config.run_invoke_handler(arc_proxy, request) {
+                            println!("Invoke handler found");
+                            Some(RpcResponse::new_result(Some(id), Some(value)))
+                        } else {
+                            println!("no invoke handler");
+                            None
                         }
                     }
-                    Err(err) => {
-                        println!("{:?}", err.to_string());
-                        if let Ok(handled) =
-                            app_config.run_invoke_handler(arc_proxy, &parse_args(&arg))
-                        {
-                            if handled {
-                                // String::from("")
-                                println!("handled");
-                            } else {
-                                println!("not handled");
-                            }
-                        }
+                    _ => {
+                        let res = Response::Error(err.to_string());
+                        Some(RpcResponse::new_error(
+                            Some(id),
+                            Some(convert_into_json(res)),
+                        ))
                     }
                 },
             }
-            0
-        }),
-    };
+        } else {
+            match events::parse_event(&req.method) {
+                Ok(event) => {
+                    if let Err(err) = s.send(event) {
+                        println!("{:?}", err.to_string());
+                    }
+                }
 
-    let main_window = app.add_window(webview_attrib, Some(vec![callback]))?;
+                Err(err) => {
+                    println!("{:?}", err.to_string());
+                }
+            };
+            None
+        }
+    });
+
+    let main_window = app.add_window_with_configs(webview_attrib, Some(handler), None, None)?;
 
     main_window.hide().unwrap();
     plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
@@ -188,18 +216,24 @@ pub fn build_webview(mut app_config: App) -> Result<Application, VeloxError> {
 
 fn init_script() -> String {
     let velox_script = include_str!("js/velox.js");
+    let test_script = include_str!("js/velox.test.js");
+
     format!(
         r#"
                       {velox_script}
-                      if (window.invoke) {{
-                        window.invoke(JSON.stringify({{veloxEvent: "initialised"}}))
+                    {test_script}
+                      if (window.rpc) {{
+                        window.rpc.notify(JSON.stringify({{veloxEvent: "initialised"}}))
+                            __VELOX__.rpc = window.rpc;
                       }} else {{
                         window.addEventListener('DOMContentLoaded', function () {{
-                          window.invoke(JSON.stringify({{veloxEvent: "loaded"}}))
+                          window.rpc.notify(JSON.stringify({{veloxEvent: "loaded"}}))
+                            __VELOX__.rpc = window.rpc;
                         }})
                       }}
                     "#,
-        velox_script = velox_script
+        velox_script = velox_script,
+        test_script = test_script,
     )
 }
 

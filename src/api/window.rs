@@ -18,14 +18,14 @@ use wry::{Attributes, WindowProxy};
 //     Ok(())
 // }
 
-pub fn set_title(title: String, proxy: Arc<WindowProxy>) -> Result<()> {
+pub fn set_title(title: String, proxy: WindowProxy) -> Result<bool> {
     proxy.set_title(title)?;
-    Ok(())
+    Ok(true)
 }
 
-pub fn maximize(proxy: Arc<WindowProxy>) -> Result<()> {
+pub fn maximize(proxy: Arc<WindowProxy>) -> Result<bool> {
     proxy.maximize()?;
-    Ok(())
+    Ok(true)
 }
 
 pub fn minimize(proxy: Arc<WindowProxy>) -> Result<()> {
@@ -42,19 +42,15 @@ pub fn hide(proxy: Arc<WindowProxy>) -> Result<()> {
     proxy.hide()?;
     Ok(())
 }
-pub fn set_transparent(transparent: bool, proxy: Arc<WindowProxy>) -> Result<()> {
-    proxy.set_transparent(transparent)?;
-    Ok(())
-}
 
 pub fn set_decorations(decorations: bool, proxy: Arc<WindowProxy>) -> Result<()> {
     proxy.set_decorations(decorations)?;
     Ok(())
 }
 
-pub fn set_fullscreen(fullscreen: bool, proxy: Arc<WindowProxy>) -> Result<()> {
+pub fn set_fullscreen(fullscreen: bool, proxy: WindowProxy) -> Result<bool> {
     proxy.set_fullscreen(fullscreen)?;
-    Ok(())
+    Ok(true)
 }
 
 pub fn open(url: String) {}

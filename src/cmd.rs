@@ -40,11 +40,6 @@ pub enum WindowProxy {
     //     success_callback: String,
     //     error_callback: String,
     // },
-    SetTransparent {
-        transparent: bool,
-        success_callback: String,
-        error_callback: String,
-    },
 
     // SetDecorations {
     //     decorations: bool,

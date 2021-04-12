@@ -19,9 +19,9 @@ pub mod server;
 pub use crate::api::fs::file_system;
 pub use app::AppBuilder;
 pub use config::VeloxConfig;
+pub use serde_json::json;
 
 use serde::Serialize;
-use serde_json::json;
 use serde_json::Value as JsonValue;
 use std::fmt::{Debug, Display};
 use std::io;
@@ -36,7 +36,8 @@ custom_error! {
     pub VeloxError
     WryError{source: wry::Error} = "{source}",
     TomlError{source: de::Error} = "{source}",
-    CommandError{source: serde_json::error::Error} = "{source}",
+    JSONError{source: serde_json::error::Error} = "{source}",
+    CommandError{detail: String} = "{detail}",
     NotificationError{source: notify_rust::error::Error} = "{source}",
     SubProcessError{detail: String} = "{detail}",
     IoError{source: io::Error} = "{source}",
@@ -96,11 +97,8 @@ pub fn format_callback_result<T: Serialize, E: Display>(
     error_callback: String,
 ) -> String {
     match result {
-        Ok(val) => format_callback(success_callback, convert_to_json(Response::Success(val))),
-        Err(err) => format_callback(
-            error_callback,
-            convert_to_json(Response::Error(err.to_string())),
-        ),
+        Ok(val) => format_callback(success_callback, convert_to_json(val)),
+        Err(err) => format_callback(error_callback, convert_to_json(err.to_string())),
     }
 }
 
@@ -113,15 +111,20 @@ pub enum Response<T> {
 }
 
 /// Converts a data structure to JSON so that the reult can be passed to the frontend
-pub fn convert_to_json<T: Serialize>(res: Response<T>) -> String {
+pub fn convert_into_json<T: Serialize>(res: Response<T>) -> serde_json::Value {
     match res {
         Response::Success(data) => json!({
             "result": data,
-        })
-        .to_string(),
+        }),
         Response::Error(msg) => json!({
             "error": msg,
-        })
-        .to_string(),
+        }),
     }
+}
+
+/// Converts a data structure to JSON so that the reult can be passed to the frontend
+pub fn convert_to_json<T: Serialize>(res: T) -> wry::Value {
+    json!({
+        "result": res,
+    })
 }

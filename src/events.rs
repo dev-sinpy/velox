@@ -37,7 +37,7 @@ pub enum Event {
 }
 
 pub fn parse_event(arg: &str) -> Result<Event, VeloxError> {
-    let event: Event = serde_json::from_str(arg)?;
+    let event: Event = serde_json::from_str(arg).unwrap();
     Ok(event)
 }
 

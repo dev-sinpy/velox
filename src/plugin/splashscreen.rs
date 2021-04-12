@@ -18,14 +18,11 @@ pub fn show_splashscreen(
     if let Some(ref _content) = app_config.splashscreen {
         spawn(move || {
             let splash_window = app
-                .add_window(
-                    Attributes {
-                        title: app_config.name,
-                        url: Some(app_config.splashscreen.unwrap()),
-                        ..Default::default()
-                    },
-                    None,
-                )
+                .add_window(Attributes {
+                    title: app_config.name,
+                    url: Some(app_config.splashscreen.unwrap()),
+                    ..Default::default()
+                })
                 .unwrap();
 
             match receiver.recv().unwrap() {

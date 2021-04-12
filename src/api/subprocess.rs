@@ -7,7 +7,7 @@ use tungstenite::server::accept;
 /// Spawns a new subprocess and returns a process handle.
 #[allow(clippy::never_loop)]
 pub fn exec<T: std::convert::AsRef<std::path::Path>>(
-    cmd: &str,
+    cmd: String,
     cwd: T,
     stream_output: bool,
 ) -> Result<String, VeloxError> {
@@ -19,7 +19,7 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
                 .current_dir(cwd)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .args(&["/C", cmd])
+                .args(&["/C", &cmd])
                 .spawn()
                 .unwrap_or_else(|_| panic!("SubProcessError: Failed to run command `{}`", cmd))
         } else {
@@ -27,7 +27,7 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
                 .current_dir(cwd)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .args(&["-c", cmd])
+                .args(&["-c", &cmd])
                 .spawn()
                 .unwrap_or_else(|_| panic!("SubProcessError: Failed to run command `{}`", cmd))
         };
@@ -55,13 +55,13 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
         let process = if cfg!(target_os = "windows") {
             Command::new("cmd")
                 .current_dir(cwd)
-                .args(&["/C", cmd])
+                .args(&["/C", &cmd])
                 .output()
                 .unwrap_or_else(|_| panic!("SubProcessError: Failed to run command `{}`", cmd))
         } else {
             Command::new("sh")
                 .current_dir(cwd)
-                .args(&["-c", cmd])
+                .args(&["-c", &cmd])
                 .output()
                 .unwrap_or_else(|_| panic!("SubProcessError: Failed to run command `{}`", cmd))
         };

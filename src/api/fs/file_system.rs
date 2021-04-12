@@ -87,7 +87,7 @@ pub enum FilePath {
     Multiple(Vec<String>),
 }
 
-pub fn open_dialog(multiple: bool, _filter: Option<Vec<String>>) -> Result<FilePath, VeloxError> {
+pub fn open_dialog(multiple: bool) -> Result<FilePath, VeloxError> {
     // function for opening a native file chooser dialog.
     if multiple {
         let path = open_file_dialog_multi("select file", ".", None);
@@ -120,12 +120,13 @@ pub fn select_folder() -> Result<String, VeloxError> {
 }
 
 /// function for saving bytes of data to a file.
-pub fn save_file<T: std::convert::AsRef<Path>>(
-    path: T,
+pub fn save_file<P: std::convert::AsRef<Path>>(
+    path: P,
     content: &[u8],
     mode: String,
 ) -> Result<String, VeloxError> {
     use fs::OpenOptions;
+
     if path.as_ref().exists() && path.as_ref().is_file() {
         let mut buffer = match mode.as_str() {
             "w" => OpenOptions::new().read(true).write(true).open(path)?,
@@ -140,15 +141,7 @@ pub fn save_file<T: std::convert::AsRef<Path>>(
     } else {
         match save_file_dialog("save file", path.as_ref().to_str().unwrap()) {
             Some(path) => {
-                let mut buffer = match mode.as_str() {
-                    "w" => OpenOptions::new().read(true).write(true).open(path)?,
-                    "a" => OpenOptions::new().append(true).open(path)?,
-                    _ => {
-                        return Err(VeloxError::IoError {
-                            source: std::io::Error::new(std::io::ErrorKind::Other, "Invalid mode."),
-                        })
-                    }
-                };
+                let mut buffer = OpenOptions::new().write(true).create_new(true).open(path)?;
                 write_file(&mut buffer, content)
             }
             None => Err(VeloxError::DialogError {
@@ -181,8 +174,7 @@ pub fn create_dir(path: String) -> Result<String, VeloxError> {
 
 pub fn create_file(path: String) -> Result<String, VeloxError> {
     /* Function for creating a file.
-    Creates a folder in current working
-    directory if path is none, else creates folder in given path.
+    creates a file in a given path
     */
     fs::OpenOptions::new()
         .write(true)

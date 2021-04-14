@@ -1,21 +1,28 @@
 use crate::Result;
 
 use std::sync::Arc;
+use std::thread::spawn;
 
 use wry::{Attributes, WindowProxy};
 
-// pub fn add_window(title: String, url: String, proxy: Arc<WindowProxy>) -> Result<()> {
-//     proxy
-//         .add_window(
-//             Attributes {
-//                 title,
-//                 url: Some(url),
-//                 ..Default::default()
-//             },
-//             None,
-//         )
-//         .unwrap();
-//     Ok(())
+pub fn add_window(title: String, url: String, proxy: WindowProxy) -> Result<bool> {
+    let app_proxy = proxy.application_proxy();
+
+    spawn(move || {
+        app_proxy
+            .add_window(Attributes {
+                title,
+                url: Some(url),
+                ..Default::default()
+            })
+            .unwrap();
+    });
+    Ok(true)
+}
+
+// pub fn close_window(window_id: wry::WindowId, proxy: WindowProxy) -> Result<bool> {
+//     let app_proxy = proxy.application_proxy();
+//     app_proxy.send_message(window_id)
 // }
 
 pub fn set_title(title: String, proxy: WindowProxy) -> Result<bool> {
@@ -52,5 +59,3 @@ pub fn set_fullscreen(fullscreen: bool, proxy: WindowProxy) -> Result<bool> {
     proxy.set_fullscreen(fullscreen)?;
     Ok(true)
 }
-
-pub fn open(url: String) {}

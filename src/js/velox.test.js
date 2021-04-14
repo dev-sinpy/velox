@@ -14,6 +14,14 @@ let _TESTS = {
     },
 
     // test window functionality
+    testAddWindow: async function() {
+        try {
+            let res = await window.__VELOX__.window.addWindow("test", "https://example.com");
+            return true;
+        } catch (err) {
+            return false;
+        }
+    },
     testSetTitle: async function() {
         try {
             let res = await window.__VELOX__.window.setTitle("title");
@@ -22,7 +30,6 @@ let _TESTS = {
             return false;
         }
     },
-
     testSetTransparent: async function() {
         try {
             let res = await window.__VELOX__.window.setTransparent(true);
@@ -31,7 +38,6 @@ let _TESTS = {
             return false;
         }
     },
-
     testSetFullscreen: async function() {
         try {
             let res = await window.__VELOX__.window.setFullscreen(true);

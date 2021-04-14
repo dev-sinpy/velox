@@ -237,6 +237,15 @@ pub fn call_func(
     params: Vec<wry::Value>,
 ) -> Result<wry::Value, VeloxError> {
     match func_name.as_str() {
+        "add_window" => {
+            let res = window::add_window(
+                serde_json::from_str(&params[0].to_string())?,
+                serde_json::from_str(&params[1].to_string())?,
+                proxy,
+            )?;
+            Ok(convert_to_json(res))
+        }
+
         "set_title" => {
             window::set_title(serde_json::from_str(&params[0].to_string())?, proxy)?;
             Ok(convert_to_json("success"))

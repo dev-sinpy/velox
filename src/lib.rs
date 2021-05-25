@@ -9,7 +9,6 @@
 pub mod api;
 pub mod app;
 pub mod assets;
-pub mod cmd;
 pub mod config;
 pub mod events;
 pub mod handler;
@@ -22,12 +21,9 @@ pub use config::VeloxConfig;
 pub use serde_json::json;
 
 use serde::Serialize;
-use serde_json::Value as JsonValue;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::io;
-use std::sync::Arc;
 use toml::de;
-use wry::WindowProxy;
 
 use custom_error::custom_error;
 
@@ -46,61 +42,61 @@ custom_error! {
 
 pub type Result<T> = std::result::Result<T, VeloxError>;
 
-pub fn execute_cmd_async<
-    T: 'static + Serialize + Send,
-    F: 'static + FnOnce() -> std::result::Result<T, VeloxError> + Send,
->(
-    task: F,
-    proxy: Arc<WindowProxy>,
-    success_callback: String,
-    error_callback: String,
-) {
-    let pool = threadpool::Builder::new().build();
-    pool.execute(move || {
-        let js = format_callback_result(task(), success_callback, error_callback);
-        proxy.evaluate_script(&js).unwrap();
-    });
-}
+// pub fn execute_cmd_async<
+//     T: 'static + Serialize + Send,
+//     F: 'static + FnOnce() -> std::result::Result<T, VeloxError> + Send,
+// >(
+//     task: F,
+//     proxy: Arc<WindowProxy>,
+//     success_callback: String,
+//     error_callback: String,
+// ) {
+//     let pool = threadpool::Builder::new().build();
+//     pool.execute(move || {
+//         let js = format_callback_result(task(), success_callback, error_callback);
+//         proxy.evaluate_script(&js).unwrap();
+//     });
+// }
 
 /// Executes a given task in a new thread and passes return value
 /// to a webview instance to return the data to frontend.
-pub fn execute_cmd<T: Serialize, F: FnOnce() -> std::result::Result<T, VeloxError>>(
-    task: F,
-    proxy: Arc<WindowProxy>,
-    success_callback: String,
-    error_callback: String,
-) {
-    let js = format_callback_result(task(), success_callback, error_callback);
-    proxy.evaluate_script(&js).unwrap();
-}
+// pub fn execute_cmd<T: Serialize, F: FnOnce() -> std::result::Result<T, VeloxError>>(
+//     task: F,
+//     proxy: Arc<WindowProxy>,
+//     success_callback: String,
+//     error_callback: String,
+// ) {
+//     let js = format_callback_result(task(), success_callback, error_callback);
+//     proxy.evaluate_script(&js).unwrap();
+// }
 
-pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
-    function_name: S,
-    arg: T,
-) -> String {
-    format!(
-      r#"
-      if (window["{fn}"]) {{
-        window["{fn}"]({arg})
-      }} else {{
-        console.warn("[Velox] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-      }}
-    "#,
-      fn = function_name,
-      arg = arg.into().to_string()
-    )
-}
+// pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
+//     function_name: S,
+//     arg: T,
+// ) -> String {
+//     format!(
+//       r#"
+//       if (window["{fn}"]) {{
+//         window["{fn}"]({arg})
+//       }} else {{
+//         console.warn("[Velox] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+//       }}
+//     "#,
+//       fn = function_name,
+//       arg = arg.into().to_string()
+//     )
+// }
 
-pub fn format_callback_result<T: Serialize, E: Display>(
-    result: std::result::Result<T, E>,
-    success_callback: String,
-    error_callback: String,
-) -> String {
-    match result {
-        Ok(val) => format_callback(success_callback, convert_to_json(val)),
-        Err(err) => format_callback(error_callback, convert_to_json(err.to_string())),
-    }
-}
+// pub fn format_callback_result<T: Serialize, E: Display>(
+//     result: std::result::Result<T, E>,
+//     success_callback: String,
+//     error_callback: String,
+// ) -> String {
+//     match result {
+//         Ok(val) => format_callback(success_callback, convert_to_json(val)),
+//         Err(err) => format_callback(error_callback, convert_to_json(err.to_string())),
+//     }
+// }
 
 /// Response data to be send back to javascript
 pub enum Response<T> {

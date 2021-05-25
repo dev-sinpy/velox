@@ -70,8 +70,7 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    /// Creates a new App builder.
-
+    /// Creates a new App builder
     pub fn from_config(config: String) -> Self {
         use portpicker::pick_unused_port;
 
@@ -100,6 +99,7 @@ impl AppBuilder {
         }
     }
 
+    /// show splashcreen with custom html
     pub fn show_splashscreen(self, content: String) -> Self {
         Self {
             name: self.name,
@@ -208,12 +208,16 @@ pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
 
     let main_window = app.add_window_with_configs(webview_attrib, Some(handler), None, None)?;
 
-    main_window.hide().unwrap();
-    plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
+    if let Some(_content) = app_conf.clone().splashscreen {
+        main_window.hide().unwrap();
+
+        plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
+    }
 
     Ok(app)
 }
 
+// initialise scripts to inject into javascript
 fn init_script() -> String {
     let velox_script = include_str!("js/velox.js");
     let test_script = include_str!("js/velox.test.js");
@@ -237,7 +241,7 @@ fn init_script() -> String {
     )
 }
 
-/// Parses arguments that came from javascript
-pub fn parse_args(args: &[String]) -> String {
-    args.first().unwrap().to_string()
-}
+// /// Parses arguments that came from javascript
+// pub fn parse_args(args: &[String]) -> String {
+//     args.first().unwrap().to_string()
+// }

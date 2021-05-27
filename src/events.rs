@@ -4,7 +4,7 @@ use crate::VeloxError;
 use serde::{Deserialize, Serialize};
 // use wry::ApplicationProxy;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum ResourceEvent {
     Error,
@@ -14,21 +14,21 @@ pub enum ResourceEvent {
     Unload,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum NetworkEvent {
     Online,
     Offline,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum VeloxEvents {
     Initialised,
     Loaded,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum Event {
     VeloxEvent(VeloxEvents),

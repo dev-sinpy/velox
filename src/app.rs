@@ -27,9 +27,12 @@ pub struct App {
 
 /// The application runner.
 #[derive(Clone, Debug)]
-pub struct Request {
-    pub method_name: String,
-    pub params: Vec<wry::Value>,
+pub enum Request {
+    FunctionCall {
+        method_name: String,
+        params: Vec<wry::Value>,
+    },
+    Event(events::Event),
 }
 
 impl App {
@@ -161,18 +164,19 @@ pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
             vec![]
         };
 
-        let request = Request {
-            method_name: req.method.clone(),
-            params: params.clone(),
-        };
-
         if let Some(id) = req.id {
-            match call_func(proxy.clone(), req.method.clone(), params) {
+            match call_func(proxy.clone(), req.method.clone(), params.clone()) {
                 Ok(val) => Some(RpcResponse::new_result(Some(id), Some(val))),
 
                 Err(err) => match err {
                     VeloxError::CommandError { detail: _ } => {
                         let arc_proxy = Arc::new(proxy);
+
+                        let request = Request::FunctionCall {
+                            method_name: req.method.clone(),
+                            params,
+                        };
+
                         if let Some(value) = app_config.run_invoke_handler(arc_proxy, request) {
                             println!("Invoke handler found");
                             Some(RpcResponse::new_result(Some(id), Some(value)))
@@ -193,9 +197,14 @@ pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
         } else {
             match events::parse_event(&req.method) {
                 Ok(event) => {
-                    if let Err(err) = s.send(event) {
+                    if let Err(err) = s.send(event.clone()) {
                         println!("{:?}", err.to_string());
                     }
+                    let arc_proxy = Arc::new(proxy);
+
+                    let request = Request::Event(event);
+
+                    app_config.run_invoke_handler(arc_proxy, request);
                 }
 
                 Err(err) => {

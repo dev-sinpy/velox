@@ -1,12 +1,19 @@
 use crate::handler::call_func;
-use crate::{config, events, plugin, server, VeloxError};
+use crate::{config, events, plugin, server, Result, VeloxError};
 
 use std::sync::{Arc, Mutex};
 
-use wry::{Application, Attributes, RpcRequest, WindowProxy};
+use wry::{
+    application::{
+        event_loop::{ControlFlow, EventLoop, EventLoopProxy},
+        window::{Window, WindowBuilder, WindowId},
+    },
+    webview::{WebView, WebViewBuilder},
+};
 
-pub type InvokeHandler =
-    Arc<Mutex<dyn FnMut(Arc<WindowProxy>, Request) -> Option<wry::Value> + Send + Sync>>;
+pub type InvokeHandler = Arc<
+    Mutex<dyn FnMut(EventLoopProxy<events::Event>, Request) -> Option<wry::Value> + Send + Sync>,
+>;
 
 pub enum ContentType {
     Url(String),
@@ -25,6 +32,17 @@ pub struct App {
     pub splashscreen: Option<String>,
 }
 
+pub struct Application {
+    pub event_loop: Option<EventLoop<events::Event>>,
+    pub webviews: Vec<WindowIdendifier>,
+}
+
+pub struct WindowIdendifier {
+    pub identifier: String,
+    pub window_id: WindowId,
+    pub webview: WebView,
+}
+
 /// The application runner.
 #[derive(Clone, Debug)]
 pub enum Request {
@@ -35,10 +53,120 @@ pub enum Request {
     Event(events::Event),
 }
 
+impl Application {
+    pub fn new(event_loop: Option<EventLoop<events::Event>>) -> Self {
+        Self {
+            event_loop,
+            webviews: vec![],
+        }
+    }
+
+    pub fn add_window(&mut self, window_identifier: WindowIdendifier) {
+        self.webviews.push(window_identifier);
+    }
+
+    pub fn remove_window(
+        &mut self,
+        window_identifier: Option<String>,
+        window_id: Option<WindowId>,
+    ) {
+        if let Some(iden) = window_identifier {
+            let index = self
+                .webviews
+                .iter()
+                .position(|item| item.identifier.contains(&iden))
+                .unwrap();
+            self.webviews.remove(index);
+        } else if let Some(id) = window_id {
+            let index = self
+                .webviews
+                .iter()
+                .position(|item| item.window_id == id)
+                .unwrap();
+            self.webviews.remove(index);
+        }
+    }
+
+    pub fn show_window(&mut self, window_identifier: String) {
+        let index = self
+            .webviews
+            .iter()
+            .position(|item| item.identifier.contains(&window_identifier))
+            .unwrap();
+        self.webviews[index].webview.window().set_visible(true);
+    }
+
+    pub fn run(mut self) {
+        use wry::application::event::{Event, StartCause, WindowEvent};
+
+        let event_loop = self.event_loop.take().unwrap();
+
+        event_loop.run(move |event, event_loop_target, control_flow| {
+            *control_flow = ControlFlow::Wait;
+
+            match event {
+                Event::NewEvents(StartCause::Init) => {}
+                Event::WindowEvent {
+                    window_id,
+                    event: WindowEvent::CloseRequested,
+                    ..
+                } => {
+                    // self.remove_webview(None, Some(window_id));
+                    if window_id == self.webviews[0].window_id {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                }
+
+                Event::UserEvent(user_event) => {
+                    use events::WindowEvents;
+
+                    match user_event {
+                        events::Event::WindowEvent(WindowEvents::AddWindow {
+                            identifier,
+                            window_title,
+                            content,
+                        }) => {
+                            let splash_window = WindowBuilder::new()
+                                .with_title(window_title)
+                                .build(&event_loop_target)
+                                .unwrap();
+
+                            let id = splash_window.id();
+
+                            let webview = WebViewBuilder::new(splash_window)
+                                .unwrap()
+                                .with_url(&content)
+                                .unwrap()
+                                .build()
+                                .unwrap();
+
+                            let window_identifier = WindowIdendifier {
+                                identifier,
+                                window_id: id,
+                                webview,
+                            };
+
+                            self.add_window(window_identifier);
+                        }
+                        events::Event::WindowEvent(WindowEvents::ShowWindow(id)) => {
+                            self.show_window(id);
+                        }
+                        events::Event::WindowEvent(WindowEvents::CloseWindow(id)) => {
+                            self.remove_window(Some(id), None);
+                        }
+                        _ => {}
+                    }
+                }
+                _ => (),
+            }
+        });
+    }
+}
+
 impl App {
     /// Runs the app until it finishes.
-    pub fn run(self) -> Result<(), String> {
-        let application = build_webview(self).unwrap();
+    pub fn run(self) -> Result<()> {
+        let application = build_webview(self)?;
         // run the webview
         application.run();
 
@@ -50,7 +178,7 @@ impl App {
     /// The message is considered consumed if the handler exists and returns an Ok Result.
     pub fn run_invoke_handler(
         &self,
-        dispatcher: Arc<WindowProxy>,
+        dispatcher: EventLoopProxy<events::Event>,
         req: Request,
     ) -> Option<wry::Value> {
         if let Some(invoke_handler) = &self.invoke_handler {
@@ -115,7 +243,7 @@ impl AppBuilder {
 
     /// Defines the JS message handler callback.
     pub fn invoke_handler<
-        F: FnMut(Arc<WindowProxy>, Request) -> Option<wry::Value> + Send + Sync + 'static,
+        F: FnMut(EventLoopProxy<events::Event>, Request) -> Option<wry::Value> + Send + Sync + 'static,
     >(
         mut self,
         invoke_handler: F,
@@ -137,27 +265,22 @@ impl AppBuilder {
 }
 
 ///Builds a webview instance with all the required details.
-pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
+pub fn build_webview(app_config: App) -> Result<Application> {
     use crate::{convert_into_json, Response};
     use crossbeam_channel::unbounded;
-    use wry::webview::RpcResponse;
+    use wry::webview::{RpcRequest, RpcResponse};
 
-    let mut app = Application::new()?;
-
-    let app_proxy = app.application_proxy();
-
-    let webview_attrib = Attributes {
-        title: app_config.name.clone(),
-        url: Some(app_config.url.clone()),
-        initialization_scripts: vec![init_script()],
-        ..Default::default()
-    };
-
-    let (s, r) = unbounded();
+    let (sender, receiver) = unbounded();
 
     let app_conf = app_config.clone();
 
-    let handler = Box::new(move |proxy: WindowProxy, req: RpcRequest| {
+    let event_loop = EventLoop::<events::Event>::with_user_event();
+
+    let event_loop_proxy = event_loop.create_proxy();
+
+    // let sender_clone = sender;
+
+    let handler = move |_window: &Window, req: RpcRequest| {
         let params = if let wry::Value::Array(params) = req.params.unwrap() {
             params.to_vec()
         } else {
@@ -165,19 +288,19 @@ pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
         };
 
         if let Some(id) = req.id {
-            match call_func(proxy.clone(), req.method.clone(), params.clone()) {
+            match call_func(req.method.clone(), params.clone()) {
                 Ok(val) => Some(RpcResponse::new_result(Some(id), Some(val))),
 
                 Err(err) => match err {
                     VeloxError::CommandError { detail: _ } => {
-                        let arc_proxy = Arc::new(proxy);
-
                         let request = Request::FunctionCall {
                             method_name: req.method.clone(),
                             params,
                         };
 
-                        if let Some(value) = app_config.run_invoke_handler(arc_proxy, request) {
+                        if let Some(value) =
+                            app_config.run_invoke_handler(event_loop_proxy.clone(), request)
+                        {
                             println!("Invoke handler found");
                             Some(RpcResponse::new_result(Some(id), Some(value)))
                         } else {
@@ -197,14 +320,13 @@ pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
         } else {
             match events::parse_event(&req.method) {
                 Ok(event) => {
-                    if let Err(err) = s.send(event.clone()) {
+                    if let Err(err) = sender.send(event.clone()) {
                         println!("{:?}", err.to_string());
                     }
-                    let arc_proxy = Arc::new(proxy);
 
                     let request = Request::Event(event);
 
-                    app_config.run_invoke_handler(arc_proxy, request);
+                    app_config.run_invoke_handler(event_loop_proxy.clone(), request);
                 }
 
                 Err(err) => {
@@ -213,15 +335,38 @@ pub fn build_webview(app_config: App) -> Result<Application, VeloxError> {
             };
             None
         }
-    });
+    };
 
-    let main_window = app.add_window_with_configs(webview_attrib, Some(handler), None, None)?;
+    let window = WindowBuilder::new()
+        .with_title(&app_conf.name)
+        .with_visible(false)
+        .build(&event_loop)
+        .unwrap();
+
+    let id = window.id();
+
+    let webview = WebViewBuilder::new(window)?
+        .with_url(&app_conf.url)?
+        .with_rpc_handler(handler)
+        .with_initialization_script(&init_script())
+        .build()?;
 
     if let Some(_content) = app_conf.clone().splashscreen {
-        main_window.hide().unwrap();
-
-        plugin::splashscreen::show_splashscreen(&app_proxy, app_conf, main_window.id(), r)?;
+        plugin::splashscreen::show_splashscreen(event_loop.create_proxy(), app_conf, receiver)
+            .unwrap();
+    } else {
+        webview.window().set_visible(true);
     }
+
+    let mut app = Application::new(Some(event_loop));
+
+    let window_identifier = WindowIdendifier {
+        identifier: "main_window".to_string(),
+        window_id: id,
+        webview,
+    };
+
+    app.add_window(window_identifier);
 
     Ok(app)
 }
@@ -237,20 +382,13 @@ fn init_script() -> String {
                     {test_script}
                       if (window.rpc) {{
                         window.rpc.notify(JSON.stringify({{veloxEvent: "initialised"}}))
-                            __VELOX__.rpc = window.rpc;
-                      }} else {{
-                        window.addEventListener('DOMContentLoaded', function () {{
+                        window.addEventListener('load', function () {{
                           window.rpc.notify(JSON.stringify({{veloxEvent: "loaded"}}))
-                            __VELOX__.rpc = window.rpc;
                         }})
+                            __VELOX__.rpc = window.rpc;
                       }}
                     "#,
         velox_script = velox_script,
         test_script = test_script,
     )
 }
-
-// /// Parses arguments that came from javascript
-// pub fn parse_args(args: &[String]) -> String {
-//     args.first().unwrap().to_string()
-// }

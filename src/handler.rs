@@ -1,34 +1,45 @@
 use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
-use crate::api::subprocess;
-use crate::api::window;
-use crate::{convert_to_json, VeloxError};
+use crate::api::{subprocess, window};
+use crate::{convert_to_json, events::Event, VeloxError};
 
-/// A command handler which passes commands from webview to the velox-api
+use wry::application::event_loop::EventLoopProxy;
+
+/// A request handler, which passes commands from webview to the velox-api and returns the result
 pub fn call_func(
-    // proxy: wry::WindowProxy,
+    event_proxy: EventLoopProxy<Event>,
     func_name: String,
     params: Vec<wry::Value>,
 ) -> Result<wry::Value, VeloxError> {
     match func_name.as_str() {
-        // "add_window" => {
-        //     let res = window::add_window(
-        //         serde_json::from_str(&params[0].to_string())?,
-        //         serde_json::from_str(&params[1].to_string())?,
-        //         proxy,
-        //     )?;
-        //     Ok(convert_to_json(res))
-        // }
+        "add_window" => {
+            let res = window::add_window(
+                serde_json::from_str(&params[0].to_string())?,
+                serde_json::from_str(&params[1].to_string())?,
+                event_proxy,
+            )?;
+            Ok(convert_to_json(res))
+        }
 
-        // "set_title" => {
-        //     window::set_title(serde_json::from_str(&params[0].to_string())?, proxy)?;
-        //     Ok(convert_to_json("success"))
-        // }
+        "close_window" => {
+            let res =
+                window::close_window(serde_json::from_str(&params[0].to_string())?, event_proxy)?;
+            Ok(convert_to_json(res))
+        }
 
-        // "set_fullscreen" => {
-        //     window::set_fullscreen(params[0].as_bool().unwrap(), proxy)?;
-        //     Ok(convert_to_json("success"))
-        // }
+        "set_title" => {
+            window::set_title(params[0].to_string(), params[1].to_string(), event_proxy)?;
+            Ok(convert_to_json("success"))
+        }
+
+        "set_fullscreen" => {
+            window::set_fullscreen(
+                params[0].to_string(),
+                params[1].as_bool().unwrap(),
+                event_proxy,
+            )?;
+            Ok(convert_to_json("success"))
+        }
         "show_notification" => {
             let res = show_notification(
                 serde_json::from_str(&params[0].to_string())?,

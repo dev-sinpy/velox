@@ -1,4 +1,5 @@
 use crate::handler::call_func;
+use crate::window::WebviewWindow;
 use crate::{config, events, plugin, server, Result, VeloxError};
 
 use std::sync::{Arc, Mutex};
@@ -8,7 +9,7 @@ use wry::{
         event_loop::{ControlFlow, EventLoop, EventLoopProxy},
         window::{Window, WindowBuilder, WindowId},
     },
-    webview::{WebView, WebViewBuilder},
+    webview::WebViewBuilder,
 };
 
 pub type InvokeHandler = Arc<
@@ -34,13 +35,7 @@ pub struct App {
 
 pub struct Application {
     pub event_loop: Option<EventLoop<events::Event>>,
-    pub webviews: Vec<WindowIdendifier>,
-}
-
-pub struct WindowIdendifier {
-    pub identifier: String,
-    pub window_id: WindowId,
-    pub webview: WebView,
+    pub webviews: Vec<WebviewWindow>,
 }
 
 /// The application runner.
@@ -61,7 +56,7 @@ impl Application {
         }
     }
 
-    pub fn add_window(&mut self, window_identifier: WindowIdendifier) {
+    pub fn add_window(&mut self, window_identifier: WebviewWindow) {
         self.webviews.push(window_identifier);
     }
 
@@ -140,7 +135,7 @@ impl Application {
                                 .build()
                                 .unwrap();
 
-                            let window_identifier = WindowIdendifier {
+                            let window_identifier = WebviewWindow {
                                 identifier,
                                 window_id: id,
                                 webview,
@@ -278,8 +273,6 @@ pub fn build_webview(app_config: App) -> Result<Application> {
 
     let event_loop_proxy = event_loop.create_proxy();
 
-    // let sender_clone = sender;
-
     let handler = move |_window: &Window, req: RpcRequest| {
         let params = if let wry::Value::Array(params) = req.params.unwrap() {
             params.to_vec()
@@ -288,7 +281,7 @@ pub fn build_webview(app_config: App) -> Result<Application> {
         };
 
         if let Some(id) = req.id {
-            match call_func(req.method.clone(), params.clone()) {
+            match call_func(event_loop_proxy.clone(), req.method.clone(), params.clone()) {
                 Ok(val) => Some(RpcResponse::new_result(Some(id), Some(val))),
 
                 Err(err) => match err {
@@ -360,7 +353,7 @@ pub fn build_webview(app_config: App) -> Result<Application> {
 
     let mut app = Application::new(Some(event_loop));
 
-    let window_identifier = WindowIdendifier {
+    let window_identifier = WebviewWindow {
         identifier: "main_window".to_string(),
         window_id: id,
         webview,

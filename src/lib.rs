@@ -1,6 +1,6 @@
-//! Velox is a framework that focuses on simplicity, performance and ease of use.
-//! It allows you to build cross platform native apps using web-technology.
-//! Velox uses rust and webview under the hood which helps to keep binary size to absolute minimal.
+//! A GUI framework that focuses on simplicity, performance and ease of use.
+//! It allows you to build cross platform native apps using your favourite web framework.
+//! Velox uses rust and wry under the hood which helps to keep binary size to absolute minimal.
 //!
 //! **Note:** This documentation is for velox_core which only includes core modules
 //! and some helper functions. If you're looking for the complete documention of the framework

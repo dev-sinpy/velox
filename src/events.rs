@@ -1,7 +1,10 @@
-// use crate::plugin;
-use crate::VeloxError;
+//! This module includes several events that velox emits when an app is being run.
+
+use crate::Result;
 
 use serde::{Deserialize, Serialize};
+
+type Identifier = String;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -30,12 +33,22 @@ pub enum VeloxEvents {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum WindowEvents {
     AddWindow {
-        identifier: String,
+        /// Identifier for a window. For example: "main_window"
+        identifier: Identifier,
         window_title: String,
         content: String,
     },
-    ShowWindow(String),
-    CloseWindow(String),
+    CloseWindow(Identifier),
+    ShowWindow(Identifier),
+    HideWindow(Identifier),
+    SetTitle {
+        identifier: Identifier,
+        title: String,
+    },
+    SetFullscreen {
+        identifier: Identifier,
+        flag: bool,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -47,7 +60,8 @@ pub enum Event {
     WindowEvent(WindowEvents),
 }
 
-pub fn parse_event(arg: &str) -> Result<Event, VeloxError> {
+/// Parses event that are being sent from javascript.
+pub fn parse_event(arg: &str) -> Result<Event> {
     let event: Event = serde_json::from_str(arg).unwrap();
     Ok(event)
 }

@@ -1,6 +1,6 @@
 use crate::handler::call_func;
 use crate::window::WebviewWindow;
-use crate::{config, events, plugin, server, Result, VeloxError};
+use crate::{config, events, plugin, server, Error, Result};
 
 use std::sync::{Arc, Mutex};
 
@@ -16,6 +16,7 @@ pub type InvokeHandler = Arc<
     Mutex<dyn FnMut(EventLoopProxy<events::Event>, Request) -> Option<wry::Value> + Send + Sync>,
 >;
 
+/// Describes type of content that will be displayed on a webview window
 pub enum ContentType {
     Url(String),
     Html(String),
@@ -24,27 +25,36 @@ pub enum ContentType {
 /// The application runner.
 #[derive(Clone)]
 pub struct App {
+    /// Name of the app
     pub name: String,
+    /// Whether app is in debug mode
     pub debug: bool,
     /// The JS message handler.
     pub invoke_handler: Option<InvokeHandler>,
     /// Url of the local server where frontend is hosted
     pub url: String,
+    /// Content to display while app is still loading
     pub splashscreen: Option<String>,
 }
 
 pub struct Application {
+    /// Event loop of the application
     pub event_loop: Option<EventLoop<events::Event>>,
+    /// Webview windows
     pub webviews: Vec<WebviewWindow>,
 }
 
-/// The application runner.
+/// Describes an incoming request from javascript.
 #[derive(Clone, Debug)]
 pub enum Request {
+    /// For calling a function from rust
     FunctionCall {
+        /// Name of the function
         method_name: String,
+        /// Array of function parameters
         params: Vec<wry::Value>,
     },
+    /// For emiting events from javascript
     Event(events::Event),
 }
 
@@ -91,6 +101,7 @@ impl Application {
         self.webviews[index].webview.window().set_visible(true);
     }
 
+    // Runs event loop of the app and responds to valid events
     pub fn run(mut self) {
         use wry::application::event::{Event, StartCause, WindowEvent};
 
@@ -196,13 +207,16 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    /// Creates a new App builder
+    /// Creates a new App builder from a valid velox-config file
     pub fn from_config(config: String) -> Self {
         use portpicker::pick_unused_port;
 
-        let config = config::parse_config(&config).unwrap();
-        let arg = std::env::args().find(|arg| arg.contains("target"));
+        let config = config::parse_config(&config).unwrap(); // Parses the velox config file
 
+        let arg = std::env::args().find(|arg| arg.contains("target")); // To find whether this is an packaged app or not
+
+        // If this is not a packaged app, then serve assets from a user defined url.
+        // Else start a new local server and serve bundled assets
         if let Some(_arg) = arg {
             Self {
                 name: config.name,
@@ -247,7 +261,7 @@ impl AppBuilder {
         self
     }
 
-    /// Builds the App.
+    /// Builds the App Struct.
     pub fn build(self) -> App {
         App {
             name: self.name,
@@ -261,7 +275,7 @@ impl AppBuilder {
 
 ///Builds a webview instance with all the required details.
 pub fn build_webview(app_config: App) -> Result<Application> {
-    use crate::{convert_into_json, Response};
+    use crate::Response;
     use crossbeam_channel::unbounded;
     use wry::webview::{RpcRequest, RpcResponse};
 
@@ -285,7 +299,7 @@ pub fn build_webview(app_config: App) -> Result<Application> {
                 Ok(val) => Some(RpcResponse::new_result(Some(id), Some(val))),
 
                 Err(err) => match err {
-                    VeloxError::CommandError { detail: _ } => {
+                    Error::CommandError { detail: _ } => {
                         let request = Request::FunctionCall {
                             method_name: req.method.clone(),
                             params,
@@ -302,11 +316,8 @@ pub fn build_webview(app_config: App) -> Result<Application> {
                         }
                     }
                     _ => {
-                        let res = Response::Error(err.to_string());
-                        Some(RpcResponse::new_error(
-                            Some(id),
-                            Some(convert_into_json(res)),
-                        ))
+                        let res = Response::from_error(err.to_string());
+                        Some(RpcResponse::new_error(Some(id), Some(res)))
                     }
                 },
             }
@@ -364,7 +375,7 @@ pub fn build_webview(app_config: App) -> Result<Application> {
     Ok(app)
 }
 
-// initialise scripts to inject into javascript
+// initialise scripts that will be injected to javascript
 fn init_script() -> String {
     let velox_script = include_str!("js/velox.js");
     let test_script = include_str!("js/velox.test.js");

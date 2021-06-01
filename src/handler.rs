@@ -1,7 +1,7 @@
 use crate::api::fs::file_system;
 use crate::api::notification::show_notification;
 use crate::api::{subprocess, window};
-use crate::{convert_to_json, events::Event, VeloxError};
+use crate::{convert_to_json, events::Event, Error, Result};
 
 use wry::application::event_loop::EventLoopProxy;
 
@@ -10,7 +10,7 @@ pub fn call_func(
     event_proxy: EventLoopProxy<Event>,
     func_name: String,
     params: Vec<wry::Value>,
-) -> Result<wry::Value, VeloxError> {
+) -> Result<wry::Value> {
     match func_name.as_str() {
         "add_window" => {
             let res = window::add_window(
@@ -123,7 +123,7 @@ pub fn call_func(
             Ok(convert_to_json(res))
         }
 
-        _ => Err(VeloxError::CommandError {
+        _ => Err(Error::CommandError {
             detail: "Invalid command".to_string(),
         }),
     }

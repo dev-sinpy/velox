@@ -1,10 +1,10 @@
 use crate::config;
-use crate::VeloxError;
+use crate::Result;
 use std::env;
 use std::path::Path;
 
 // Returns the path of where the assets are located
-pub fn get_asset_path(config: &config::VeloxConfig) -> Result<String, VeloxError> {
+pub fn get_asset_path(config: &config::VeloxConfig) -> Result<String> {
     if cfg!(target_os = "linux") {
         // check if app is being run by cargo
         let arg = env::args().find(|arg| arg.contains("target"));

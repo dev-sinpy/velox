@@ -1,6 +1,6 @@
 use wry::{application::window::WindowId, webview::WebView};
 
-/// Represents a webview window
+/// Describes a webview window
 pub struct WebviewWindow {
     /// An identifier for a window; example: "main_window"
     pub identifier: String,

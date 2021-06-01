@@ -1,4 +1,4 @@
-use crate::VeloxError;
+use crate::Result;
 use portpicker::pick_unused_port;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
@@ -10,7 +10,7 @@ pub fn exec<T: std::convert::AsRef<std::path::Path>>(
     cmd: String,
     cwd: T,
     stream_output: bool,
-) -> Result<String, VeloxError> {
+) -> Result<String> {
     use std::io::BufRead;
 
     if stream_output {

@@ -1,4 +1,4 @@
-use crate::VeloxError;
+use crate::{Error, Result};
 use content_inspector::{inspect, ContentType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -87,13 +87,13 @@ pub enum FilePath {
     Multiple(Vec<String>),
 }
 
-pub fn open_dialog(multiple: bool) -> Result<FilePath, VeloxError> {
+pub fn open_dialog(multiple: bool) -> Result<FilePath> {
     // function for opening a native file chooser dialog.
     if multiple {
         let path = open_file_dialog_multi("select file", ".", None);
         match path {
             Some(path) => Ok(FilePath::Multiple(path)), // return file path
-            None => Err(VeloxError::DialogError {
+            None => Err(Error::DialogError {
                 detail: String::from("User did not selected any file."),
             }), // return None if no path has been selected.
         }
@@ -101,19 +101,19 @@ pub fn open_dialog(multiple: bool) -> Result<FilePath, VeloxError> {
         let path = open_file_dialog("select file", ".", None);
         match path {
             Some(path) => Ok(FilePath::Single(path)), // return file path
-            None => Err(VeloxError::DialogError {
+            None => Err(Error::DialogError {
                 detail: String::from("User did not selected any file."),
             }), // return None if no path has been selected.
         }
     }
 }
 
-pub fn select_folder() -> Result<String, VeloxError> {
+pub fn select_folder() -> Result<String> {
     // function for opening a native dialog for selecting a folder.
     // returns path of a selected folder.
     match select_folder_dialog("select folder", ".") {
         Some(path) => Ok(path),
-        None => Err(VeloxError::DialogError {
+        None => Err(Error::DialogError {
             detail: String::from("User did not selected any file."),
         }),
     }
@@ -124,7 +124,7 @@ pub fn save_file<P: std::convert::AsRef<Path>>(
     path: P,
     content: &[u8],
     mode: String,
-) -> Result<String, VeloxError> {
+) -> Result<String> {
     use fs::OpenOptions;
 
     if path.as_ref().exists() && path.as_ref().is_file() {
@@ -132,7 +132,7 @@ pub fn save_file<P: std::convert::AsRef<Path>>(
             "w" => OpenOptions::new().read(true).write(true).open(path)?,
             "a" => OpenOptions::new().append(true).open(path)?,
             _ => {
-                return Err(VeloxError::IoError {
+                return Err(Error::IoError {
                     source: std::io::Error::new(std::io::ErrorKind::Other, "Invalid mode."),
                 })
             }
@@ -144,14 +144,14 @@ pub fn save_file<P: std::convert::AsRef<Path>>(
                 let mut buffer = OpenOptions::new().write(true).create_new(true).open(path)?;
                 write_file(&mut buffer, content)
             }
-            None => Err(VeloxError::DialogError {
+            None => Err(Error::DialogError {
                 detail: String::from("User did not save the file."),
             }),
         }
     }
 }
 
-pub fn read_dir(path: String) -> Result<HashMap<String, File>, VeloxError> {
+pub fn read_dir(path: String) -> Result<HashMap<String, File>> {
     // function for reading contenrs of a directory.
     let mut folder: HashMap<String, File> = HashMap::new();
 
@@ -164,7 +164,7 @@ pub fn read_dir(path: String) -> Result<HashMap<String, File>, VeloxError> {
     Ok(folder)
 }
 
-pub fn create_dir(path: String) -> Result<String, VeloxError> {
+pub fn create_dir(path: String) -> Result<String> {
     /* Function for creating a directory
     Creates directory in a given path
     */
@@ -172,7 +172,7 @@ pub fn create_dir(path: String) -> Result<String, VeloxError> {
     Ok("success".to_string())
 }
 
-pub fn create_file(path: String) -> Result<String, VeloxError> {
+pub fn create_file(path: String) -> Result<String> {
     /* Function for creating a file.
     creates a file in a given path
     */
@@ -196,43 +196,43 @@ pub fn read_file(path: String) -> FileResult {
     FileResult::new(path, bytes, metadata)
 }
 
-pub fn read_text_file(path: String) -> Result<String, VeloxError> {
+pub fn read_text_file(path: String) -> Result<String> {
     //read a text file
 
     let file = fs::read_to_string(&path)?;
     Ok(file)
 
     // match inspect(&bytes) {
-    //     ContentType::BINARY => Err(VeloxError::IoError { source: "here" }),
+    //     ContentType::BINARY => Er::IoError { source: "here" }),
     //     _ => Ok(base64::encode(&bytes)),
     // }
 }
 
-pub fn write_file(file: &mut fs::File, content: &[u8]) -> Result<String, VeloxError> {
+pub fn write_file(file: &mut fs::File, content: &[u8]) -> Result<String> {
     file.write_all(content)?;
     Ok("success".to_string())
 }
 
-pub fn copy_file(from: String, to: String) -> Result<String, VeloxError> {
+pub fn copy_file(from: String, to: String) -> Result<String> {
     // copy a file from a to b, where a is current path of a file
     // and b is a path where you want it to be copied.
     fs::copy(from, to)?;
     Ok("success".to_string())
 }
 
-pub fn rename_file(from: String, to: String) -> Result<String, VeloxError> {
+pub fn rename_file(from: String, to: String) -> Result<String> {
     //rename or move file
     fs::rename(from, to)?; // move file
     Ok("success".to_string())
 }
 
-pub fn remove_file(path: String) -> Result<String, VeloxError> {
+pub fn remove_file(path: String) -> Result<String> {
     // remove a file
     fs::remove_file(path)?;
     Ok("success".to_string())
 }
 
-pub fn remove_dir(path: String) -> Result<String, VeloxError> {
+pub fn remove_dir(path: String) -> Result<String> {
     // remove a directory and all its contents. USE VERY CAREFULLY
     fs::remove_dir_all(path)?;
     Ok("success".to_string())

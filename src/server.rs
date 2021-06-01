@@ -7,60 +7,6 @@ use crate::assets;
 use crate::config;
 use tiny_http::{self, Request, Response};
 
-// enum Route<F> {
-//     Homepage { req: Request, func: F },
-//     Error404 { req: Request, func: F },
-// }
-
-// enum ResponseType {
-//     Success(ResponseKind),
-//     Error(ResponseKind),
-// }
-
-// enum ResponseKind {
-//     File(Response<fs::File>),
-//     Text(Response<Cursor<Vec<u8>>>),
-// }
-
-// impl Route<Box<dyn FnOnce() -> ResponseType>> {
-
-//     fn _respond(self) {
-//         match self {
-//             Route::Homepage { req, func } => match func() {
-//                 ResponseType::Success(response_type) => match response_type {
-//                     ResponseKind::File(res) => {
-//                         req.respond(res).unwrap();
-//                     }
-//                     ResponseKind::Text(res) => {
-//                         req.respond(res).unwrap();
-//                     }
-//                 },
-//                 ResponseType::Error(response_type) => match response_type {
-//                     ResponseKind::File(res) => {
-//                         req.respond(res).unwrap();
-//                     }
-//                     ResponseKind::Text(res) => {
-//                         req.respond(res).unwrap();
-//                     }
-//                 },
-//             },
-
-//             Route::Error404 { req, func } => match func() {
-//                 ResponseType::Error(response_type) => match response_type {
-//                     ResponseKind::File(res) => {
-//                         req.respond(res).unwrap();
-//                     }
-//                     ResponseKind::Text(res) => {
-//                         req.respond(res).unwrap();
-//                     }
-//                 },
-
-//                 _ => panic!("Error route cannot respond with any other response type"),
-//             },
-//         }
-//     }
-// }
-
 fn handle_req(req: Request, config: &config::VeloxConfig) {
     match req.url() {
         "/" => home_screen(req, config),

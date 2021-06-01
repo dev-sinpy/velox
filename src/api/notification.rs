@@ -1,11 +1,7 @@
-use crate::VeloxError;
+use crate::Result;
 use notify_rust::Notification;
 
-pub fn show_notification(
-    summary: String,
-    body: String,
-    timeout: i32,
-) -> Result<String, VeloxError> {
+pub fn show_notification(summary: String, body: String, timeout: i32) -> Result<String> {
     Notification::new()
         .summary(&summary)
         .body(&body)

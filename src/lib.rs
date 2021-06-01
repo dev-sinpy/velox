@@ -1,6 +1,6 @@
-//! Velox is a framework that focuses on simplicity, performance and ease of use.
-//! It allows you to build cross platform native apps using web-technology.
-//! Velox uses rust and webview under the hood which helps to keep binary size to absolute minimal.
+//! A GUI framework that focuses on simplicity, performance and ease of use.
+//! It allows you to build cross platform native apps using your favourite web framework.
+//! Velox uses [wry](https://github.com/tauri-apps/wry) under the hood which helps to keep binary size to absolute minimal.
 //!
 //! **Note:** This documentation is for velox_core which only includes core modules
 //! and some helper functions. If you're looking for the complete documention of the framework
@@ -14,6 +14,7 @@ pub mod events;
 pub mod handler;
 pub mod plugin;
 pub mod server;
+pub mod window;
 
 pub use crate::api::fs::file_system;
 pub use app::AppBuilder;
@@ -28,9 +29,10 @@ use toml::de;
 use custom_error::custom_error;
 
 custom_error! {
-    /// If something goes wrong these errors will be returned
-    pub VeloxError
+    /// Errors returned by velox
+    pub Error
     WryError{source: wry::Error} = "{source}",
+    EventLoopClosed{source: wry::application::event_loop::EventLoopClosed<events::Event>} = "{source}",
     TomlError{source: de::Error} = "{source}",
     JSONError{source: serde_json::error::Error} = "{source}",
     CommandError{detail: String} = "{detail}",
@@ -40,81 +42,34 @@ custom_error! {
     DialogError{detail: String} = "{detail}",
 }
 
-pub type Result<T> = std::result::Result<T, VeloxError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
-// pub fn execute_cmd_async<
-//     T: 'static + Serialize + Send,
-//     F: 'static + FnOnce() -> std::result::Result<T, VeloxError> + Send,
-// >(
-//     task: F,
-//     proxy: Arc<WindowProxy>,
-//     success_callback: String,
-//     error_callback: String,
-// ) {
-//     let pool = threadpool::Builder::new().build();
-//     pool.execute(move || {
-//         let js = format_callback_result(task(), success_callback, error_callback);
-//         proxy.evaluate_script(&js).unwrap();
-//     });
-// }
-
-/// Executes a given task in a new thread and passes return value
-/// to a webview instance to return the data to frontend.
-// pub fn execute_cmd<T: Serialize, F: FnOnce() -> std::result::Result<T, VeloxError>>(
-//     task: F,
-//     proxy: Arc<WindowProxy>,
-//     success_callback: String,
-//     error_callback: String,
-// ) {
-//     let js = format_callback_result(task(), success_callback, error_callback);
-//     proxy.evaluate_script(&js).unwrap();
-// }
-
-// pub fn format_callback<T: Into<JsonValue>, S: AsRef<str> + Display>(
-//     function_name: S,
-//     arg: T,
-// ) -> String {
-//     format!(
-//       r#"
-//       if (window["{fn}"]) {{
-//         window["{fn}"]({arg})
-//       }} else {{
-//         console.warn("[Velox] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-//       }}
-//     "#,
-//       fn = function_name,
-//       arg = arg.into().to_string()
-//     )
-// }
-
-// pub fn format_callback_result<T: Serialize, E: Display>(
-//     result: std::result::Result<T, E>,
-//     success_callback: String,
-//     error_callback: String,
-// ) -> String {
-//     match result {
-//         Ok(val) => format_callback(success_callback, convert_to_json(val)),
-//         Err(err) => format_callback(error_callback, convert_to_json(err.to_string())),
-//     }
-// }
-
-/// Response data to be send back to javascript
-pub enum Response<T> {
+/// Describes response data that will be sent back to javascript
+pub enum Response<T: Serialize> {
     /// Successful response with result
     Success(T),
     /// Error response with details about the error
     Error(T),
 }
 
-/// Converts a data structure to JSON so that the reult can be passed to the frontend
-pub fn convert_into_json<T: Serialize>(res: Response<T>) -> serde_json::Value {
-    match res {
-        Response::Success(data) => json!({
-            "result": data,
-        }),
-        Response::Error(msg) => json!({
-            "error": msg,
-        }),
+impl<T: Serialize> Response<T> {
+    /// Converts a response to JSON
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            Response::Success(data) => json!({
+                "result": data,
+            }),
+            Response::Error(msg) => json!({
+                "error": msg,
+            }),
+        }
+    }
+
+    // converts an error message to JSON
+    pub fn from_error(err: T) -> serde_json::Value {
+        json!({
+            "error": err,
+        })
     }
 }
 

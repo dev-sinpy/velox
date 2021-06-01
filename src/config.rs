@@ -1,4 +1,4 @@
-use crate::VeloxError;
+use crate::Result;
 use serde::{Deserialize, Serialize};
 
 /// The `metadata` section of the package configuration.
@@ -67,16 +67,9 @@ pub struct VeloxConfig {
     pub dev_server_url: String,
     pub package_manager: String,
     pub build_dir: String,
-    // pub splashscreen: Splashscreen,
 }
 
-// #[derive(Serialize, Deserialize, Clone)]
-// pub struct Splashscreen {
-//     pub enable: bool,
-//     pub path: String,
-// }
-
-pub fn parse_cargo_config() -> Result<CargoSettings, VeloxError> {
+pub fn parse_cargo_config() -> Result<CargoSettings> {
     use std::fs;
 
     let cargo_config = fs::read_to_string("./Cargo.toml")?;
@@ -85,7 +78,7 @@ pub fn parse_cargo_config() -> Result<CargoSettings, VeloxError> {
     Ok(config_toml)
 }
 
-pub fn parse_config(config: &str) -> Result<VeloxConfig, VeloxError> {
+pub fn parse_config(config: &str) -> Result<VeloxConfig> {
     let config_json: VeloxConfig = serde_json::from_str(config)?;
 
     Ok(config_json)

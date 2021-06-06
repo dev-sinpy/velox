@@ -9,3 +9,18 @@ pub struct WebviewWindow {
     // Instance of webview which also holds a reference to a tao window
     pub webview: WebView,
 }
+
+impl WebviewWindow {
+    pub fn fullscreen(&self) {
+        self.webview.window().fullscreen();
+    }
+    pub fn set_title(&self, title: String) {
+        self.webview.window().set_title(&title);
+    }
+    pub fn maximize(&self, flag: bool) {
+        self.webview.window().set_maximized(flag);
+    }
+    pub fn minimize(&self, flag: bool) {
+        self.webview.window().set_minimized(flag);
+    }
+}

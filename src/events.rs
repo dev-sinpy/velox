@@ -34,20 +34,27 @@ pub enum VeloxEvents {
 pub enum WindowEvents {
     AddWindow {
         /// Identifier for a window. For example: "main_window"
-        identifier: Identifier,
         window_title: String,
         content: String,
+        identifier: Identifier,
     },
     CloseWindow(Identifier),
     ShowWindow(Identifier),
     HideWindow(Identifier),
     SetTitle {
-        identifier: Identifier,
         title: String,
+        identifier: Identifier,
     },
     SetFullscreen {
         identifier: Identifier,
+    },
+    Maximize {
         flag: bool,
+        identifier: Identifier,
+    },
+    Minimize {
+        flag: bool,
+        identifier: Identifier,
     },
 }
 

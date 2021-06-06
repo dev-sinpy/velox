@@ -8,9 +8,9 @@ use wry::application::event_loop::EventLoopProxy;
 
 pub fn add_window(title: String, url: String, event_proxy: EventLoopProxy<Event>) -> Result<bool> {
     event_proxy.send_event(Event::WindowEvent(WindowEvents::AddWindow {
-        identifier: title.clone(),
-        window_title: title,
+        window_title: title.clone(),
         content: url,
+        identifier: title,
     }))?;
     Ok(true)
 }
@@ -23,21 +23,40 @@ pub fn close_window(window_identifier: String, event_proxy: EventLoopProxy<Event
 }
 
 pub fn set_title(
-    window_identifier: String,
     title: String,
+    window_identifier: String,
     event_proxy: EventLoopProxy<Event>,
 ) -> Result<bool> {
     event_proxy.send_event(Event::WindowEvent(WindowEvents::SetTitle {
-        identifier: window_identifier,
         title,
+        identifier: window_identifier,
     }))?;
     Ok(true)
 }
 
-// pub fn maximize(proxy: Arc<WindowProxy>) -> Result<bool> {
-//     proxy.maximize()?;
-//     Ok(true)
-// }
+pub fn maximize(
+    flag: bool,
+    window_identifier: String,
+    event_proxy: EventLoopProxy<Event>,
+) -> Result<bool> {
+    event_proxy.send_event(Event::WindowEvent(WindowEvents::Maximize {
+        flag,
+        identifier: window_identifier,
+    }))?;
+    Ok(true)
+}
+
+pub fn minimize(
+    flag: bool,
+    window_identifier: String,
+    event_proxy: EventLoopProxy<Event>,
+) -> Result<bool> {
+    event_proxy.send_event(Event::WindowEvent(WindowEvents::Minimize {
+        flag,
+        identifier: window_identifier,
+    }))?;
+    Ok(true)
+}
 
 // pub fn minimize(proxy: Arc<WindowProxy>) -> Result<()> {
 //     proxy.minimize()?;
@@ -59,14 +78,9 @@ pub fn set_title(
 //     Ok(())
 // }
 
-pub fn set_fullscreen(
-    window_identifier: String,
-    flag: bool,
-    event_proxy: EventLoopProxy<Event>,
-) -> Result<bool> {
+pub fn fullscreen(window_identifier: String, event_proxy: EventLoopProxy<Event>) -> Result<bool> {
     event_proxy.send_event(Event::WindowEvent(WindowEvents::SetFullscreen {
         identifier: window_identifier,
-        flag,
     }))?;
     Ok(true)
 }

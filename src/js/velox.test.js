@@ -24,23 +24,39 @@ let _TESTS = {
     },
     testSetTitle: async function() {
         try {
-            let res = await window.__VELOX__.window.setTitle("title");
+            let res = await window.__VELOX__.window.setTitle("title", "main_window");
             return true;
         } catch (err) {
             return false;
         }
     },
-    testSetTransparent: async function() {
-        try {
-            let res = await window.__VELOX__.window.setTransparent(true);
-            return true;
-        } catch (err) {
-            return false;
-        }
-    },
+    // testSetTransparent: async function() {
+    //     try {
+    //         let res = await window.__VELOX__.window.setTransparent(true);
+    //         return true;
+    //     } catch (err) {
+    //         return false;
+    //     }
+    // },
     testSetFullscreen: async function() {
         try {
-            let res = await window.__VELOX__.window.setFullscreen(true);
+            let res = await window.__VELOX__.window.setFullscreen("main_window");
+            return true;
+        } catch (err) {
+            return false;
+        }
+    },
+    testSetMaximized: async function() {
+        try {
+            let res = await window.__VELOX__.window.maximize(true, "main_window");
+            return true;
+        } catch (err) {
+            return false;
+        }
+    },
+    testSetMinimize: async function() {
+        try {
+            let res = await window.__VELOX__.window.minimize(true, "main_window");
             return true;
         } catch (err) {
             return false;

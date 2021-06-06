@@ -28,18 +28,37 @@ pub fn call_func(
         }
 
         "set_title" => {
-            window::set_title(params[0].to_string(), params[1].to_string(), event_proxy)?;
-            Ok(convert_to_json("success"))
-        }
-
-        "set_fullscreen" => {
-            window::set_fullscreen(
-                params[0].to_string(),
-                params[1].as_bool().unwrap(),
+            window::set_title(
+                serde_json::from_str(&params[0].to_string())?,
+                serde_json::from_str(&params[1].to_string())?,
                 event_proxy,
             )?;
             Ok(convert_to_json("success"))
         }
+
+        "set_fullscreen" => {
+            window::fullscreen(serde_json::from_str(&params[0].to_string())?, event_proxy)?;
+            Ok(convert_to_json("success"))
+        }
+
+        "maximize" => {
+            window::maximize(
+                params[0].as_bool().unwrap(),
+                serde_json::from_str(&params[1].to_string())?,
+                event_proxy,
+            )?;
+            Ok(convert_to_json("success"))
+        }
+
+        "minimize" => {
+            window::minimize(
+                params[0].as_bool().unwrap(),
+                serde_json::from_str(&params[1].to_string())?,
+                event_proxy,
+            )?;
+            Ok(convert_to_json("success"))
+        }
+
         "show_notification" => {
             let res = show_notification(
                 serde_json::from_str(&params[0].to_string())?,

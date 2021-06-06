@@ -128,9 +128,9 @@ impl Application {
 
                     match user_event {
                         events::Event::WindowEvent(WindowEvents::AddWindow {
-                            identifier,
                             window_title,
                             content,
+                            identifier,
                         }) => {
                             let splash_window = WindowBuilder::new()
                                 .with_title(window_title)
@@ -154,12 +154,54 @@ impl Application {
 
                             self.add_window(window_identifier);
                         }
+
                         events::Event::WindowEvent(WindowEvents::ShowWindow(id)) => {
                             self.show_window(id);
                         }
+
                         events::Event::WindowEvent(WindowEvents::CloseWindow(id)) => {
                             self.remove_window(Some(id), None);
                         }
+
+                        events::Event::WindowEvent(WindowEvents::SetFullscreen { identifier }) => {
+                            let index = self
+                                .webviews
+                                .iter()
+                                .position(|item| item.identifier.contains(&identifier))
+                                .unwrap();
+                            self.webviews[index].fullscreen();
+                        }
+
+                        events::Event::WindowEvent(WindowEvents::SetTitle {
+                            title,
+                            identifier,
+                        }) => {
+                            let index = self
+                                .webviews
+                                .iter()
+                                .position(|item| item.identifier.contains(&identifier))
+                                .unwrap();
+                            self.webviews[index].set_title(title);
+                        }
+
+                        events::Event::WindowEvent(WindowEvents::Maximize { flag, identifier }) => {
+                            let index = self
+                                .webviews
+                                .iter()
+                                .position(|item| item.identifier.contains(&identifier))
+                                .unwrap();
+                            self.webviews[index].maximize(flag);
+                        }
+
+                        events::Event::WindowEvent(WindowEvents::Minimize { flag, identifier }) => {
+                            let index = self
+                                .webviews
+                                .iter()
+                                .position(|item| item.identifier.contains(&identifier))
+                                .unwrap();
+                            self.webviews[index].minimize(flag);
+                        }
+
                         _ => {}
                     }
                 }

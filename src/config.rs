@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 /// The `metadata` section of the package configuration.
 ///
 /// # Example Cargo.toml
-/// ```
+///
 /// [package]
 /// name = "..."
 ///
 /// [package.metadata.bundle]
 /// identifier = "..."
-/// ...other properties from BundleSettings
-/// ```
+/// other properties from BundleSettings
+///
 
 /// The `package` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]

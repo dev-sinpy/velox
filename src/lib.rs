@@ -14,6 +14,7 @@ pub mod events;
 pub mod handler;
 pub mod plugin;
 pub mod server;
+pub mod utils;
 pub mod window;
 
 pub use crate::api::fs::file_system;

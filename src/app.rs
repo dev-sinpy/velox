@@ -44,7 +44,7 @@ pub struct Application {
 
 pub struct Message {
     sender: Sender<events::Event>,
-    receiver: Receiver<events::Event>,
+    _receiver: Receiver<events::Event>,
 }
 
 /// Describes an incoming request from javascript.
@@ -265,31 +265,6 @@ impl AppBuilder {
             content: None,
             splashscreen: None,
         }
-
-        // let arg = std::env::args().find(|arg| arg.contains("target")); // To find whether this is an packaged app or not
-
-        // If this is not a packaged app, then serve assets from a user defined url.
-        // Else start a new local server and serve bundled assets
-        // if let Some(_arg) = arg {
-        //     Self {
-        //         name: config.name,
-        //         debug: config.debug,
-        //         invoke_handler: None,
-        //         content: None,
-        //         splashscreen: None,
-        //     }
-        // } else {
-        //     let port = pick_unused_port().expect("no unused port");
-        //     let url = format!("127.0.0.1:{}", port);
-        //     server::spawn_server(&url, config.clone());
-        //     Self {
-        //         name: config.name,
-        //         debug: config.debug,
-        //         invoke_handler: None,
-        //         url: "velox://".to_owned() + &url,
-        //         splashscreen: None,
-        //     }
-        // }
     }
 
     /// show splashcreen with custom html
@@ -418,27 +393,35 @@ pub fn build_webview(app_config: App) -> Result<Application> {
     let id = window.id();
 
     let webview = WebViewBuilder::new(window)?
-        .with_url(app_conf.content.as_ref().unwrap().get_content())?
+        .with_url(
+            app_conf
+                .content
+                .as_ref()
+                .expect("No content to load. Did you forget to call load method on app builder?")
+                .get_content(),
+        )?
         .with_rpc_handler(handler)
         .with_initialization_script(&init_script())
-        .with_custom_protocol("velox".into(), move |_window, requested_asset_path| {
+        .with_custom_protocol("velox".into(), |request| {
             use std::fs;
             use std::path::Path;
+            use wry::http::ResponseBuilder;
 
             // Remove url scheme
-            let striped_path = requested_asset_path.replace("velox://", "");
+            let striped_path = request.uri().replace("velox://", "");
             let path = Path::new(&striped_path);
             let asset_path = path.strip_prefix(path.parent().unwrap()).unwrap();
 
-            let content = fs::read(asset_path.canonicalize()?)?;
-
             // Return asset contents and mime types based on file extentions
-            // If you don't want to do this manually, there are some crates for you.
-            // Such as `infer` and `mime_guess`.
-            Ok((content, server::get_mime_type(asset_path)))
+            let (data, meta) = (
+                fs::read(asset_path.canonicalize()?)?,
+                server::get_mime_type(asset_path),
+            );
+            ResponseBuilder::new().mimetype(meta).body(data)
         })
         .build()?;
 
+    // show splashscreen if option is enabled else just show main window
     if let Some(_content) = app_conf.clone().splashscreen {
         plugin::splashscreen::show_splashscreen(
             event_loop.create_proxy(),
@@ -450,7 +433,13 @@ pub fn build_webview(app_config: App) -> Result<Application> {
         webview.window().set_visible(true);
     }
 
-    let mut app = Application::new(Some(event_loop), Message { sender, receiver });
+    let mut app = Application::new(
+        Some(event_loop),
+        Message {
+            sender,
+            _receiver: receiver,
+        },
+    );
 
     let window_identifier = WebviewWindow {
         identifier: "main_window".to_string(),

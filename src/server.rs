@@ -71,7 +71,7 @@ fn serve_assets(req: Request, config: &config::VeloxConfig) {
     }
 }
 
-fn get_mime_type(path: &Path) -> &str {
+pub fn get_mime_type(path: &Path) -> &str {
     match path.extension().unwrap().to_str().unwrap() {
         "html" | "htm" => "text/html",
         "css" => "text/css",
